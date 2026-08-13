@@ -500,14 +500,10 @@ public class InternController : ControllerBase
             (File: req.CnicFile, Type: UploadDocumentType.Cnic),
             (File: req.UniversityIdFile, Type: UploadDocumentType.UniversityId),
             (File: req.ResumeFile, Type: UploadDocumentType.Resume)
-        };
+        }.Where(s => s.File != null).ToArray();
 
-        if (submissions.Any(s => s.File == null))
-            return BadRequest(new { message = "CNIC, University ID and Resume are all required" });
-
-        long totalBytes = submissions.Sum(s => s.File!.Length);
-        if (totalBytes > DocumentUploadRules.MaxTotalSizeBytes)
-            return BadRequest(new { message = $"Total upload size exceeds the {DocumentUploadRules.MaxTotalSizeBytes / (1024 * 1024)} MB limit" });
+        if (submissions.Length == 0)
+            return BadRequest(new { message = "No files provided" });
 
         foreach (var s in submissions)
         {

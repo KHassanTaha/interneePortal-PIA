@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace InternSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260813062131_AddDocumentUploads")]
+    [Migration("20260813064852_AddDocumentUploads")]
     partial class AddDocumentUploads
     {
         /// <inheritdoc />
@@ -635,7 +635,7 @@ namespace InternSystem.Infrastructure.Migrations
                             Id = 1,
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             IsActive = true,
-                            PasswordHash = "$2a$11$Lbpb1lyQUrhOyUXTuveDw.q13xwI8UikZ8pqzNl6UtfIkV3DM//l.",
+                            PasswordHash = "$2a$11$sUTOHexkYRuEuyoXa6VpneHbmda7GxkZjTpilTSAlX/Yr5s6dUMLC",
                             Role = "Admin",
                             Username = "admin"
                         });
@@ -681,19 +681,19 @@ namespace InternSystem.Infrastructure.Migrations
                     b.HasOne("InternSystem.Core.Entities.Department", "Department")
                         .WithMany()
                         .HasForeignKey("DepartmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("InternSystem.Core.Entities.Intern", "Intern")
                         .WithMany()
                         .HasForeignKey("InternId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("InternSystem.Core.Entities.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Department");

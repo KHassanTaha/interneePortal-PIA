@@ -61,19 +61,19 @@ namespace InternSystem.Infrastructure.Migrations
                         column: x => x.DepartmentId,
                         principalTable: "Departments",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_AttendanceVerificationSessions_Interns_InternId",
                         column: x => x.InternId,
                         principalTable: "Interns",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_AttendanceVerificationSessions_Users_UserId",
                         column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -115,7 +115,7 @@ namespace InternSystem.Infrastructure.Migrations
                 keyColumn: "Id",
                 keyValue: 1,
                 column: "PasswordHash",
-                value: "$2a$11$Lbpb1lyQUrhOyUXTuveDw.q13xwI8UikZ8pqzNl6UtfIkV3DM//l.");
+                value: "$2a$11$sUTOHexkYRuEuyoXa6VpneHbmda7GxkZjTpilTSAlX/Yr5s6dUMLC");
 
             migrationBuilder.CreateIndex(
                 name: "IX_AttendanceVerificationSessions_DepartmentId",

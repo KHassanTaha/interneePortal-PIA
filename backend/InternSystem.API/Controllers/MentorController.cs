@@ -625,7 +625,7 @@ public class MentorController : ControllerBase
             .FirstOrDefaultAsync(d => d.Id == id && d.Intern.MentorId == mentor.Id);
         if (doc == null) return NotFound();
 
-        if (doc.Status != DocumentRequestStatus.Pending)
+        if (doc.Status != DocumentRequestStatus.Pending || doc.WithdrawnAt != null)
             return BadRequest(new { message = "Only pending documents can be approved" });
 
         doc.Status = DocumentRequestStatus.Approved;
@@ -656,7 +656,7 @@ public class MentorController : ControllerBase
             .FirstOrDefaultAsync(d => d.Id == id && d.Intern.MentorId == mentor.Id);
         if (doc == null) return NotFound();
 
-        if (doc.Status != DocumentRequestStatus.Pending)
+        if (doc.Status != DocumentRequestStatus.Pending || doc.WithdrawnAt != null)
             return BadRequest(new { message = "Only pending documents can be rejected" });
 
         doc.Status = DocumentRequestStatus.Rejected;

@@ -132,6 +132,15 @@ public class AppDbContext : DbContext
         // AttendanceVerificationSession
         modelBuilder.Entity<AttendanceVerificationSession>(e =>
         {
+            e.HasOne(s => s.User).WithMany()
+                .HasForeignKey(s => s.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(s => s.Intern).WithMany()
+                .HasForeignKey(s => s.InternId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(s => s.Department).WithMany()
+                .HasForeignKey(s => s.DepartmentId)
+                .OnDelete(DeleteBehavior.Restrict);
             e.Property(s => s.Status).HasConversion<string>();
         });
 
