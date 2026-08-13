@@ -18,6 +18,7 @@ public class AppDbContext : DbContext
     public DbSet<Certificate> Certificates => Set<Certificate>();
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
     public DbSet<AttendanceVerificationSession> AttendanceVerificationSessions => Set<AttendanceVerificationSession>();
+    public DbSet<DocumentUpload> DocumentUploads => Set<DocumentUpload>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -132,6 +133,19 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<AttendanceVerificationSession>(e =>
         {
             e.Property(s => s.Status).HasConversion<string>();
+        });
+
+        // DocumentUpload
+        modelBuilder.Entity<DocumentUpload>(e =>
+        {
+            e.HasOne(d => d.Intern).WithMany()
+                .HasForeignKey(d => d.InternId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(d => d.ApprovedByUser).WithMany()
+                .HasForeignKey(d => d.ApprovedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.Property(d => d.DocumentType).HasConversion<string>();
+            e.Property(d => d.Status).HasConversion<string>();
         });
 
         // Seed data

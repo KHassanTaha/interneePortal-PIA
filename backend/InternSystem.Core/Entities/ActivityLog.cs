@@ -18,7 +18,12 @@ public enum ActivityLogType
     TaskCompleted,
     PasswordReset,
     Login,
-    Logout
+    Logout,
+    DocumentUploaded,
+    DocumentApproved,
+    DocumentRejected,
+    DocumentWithdrawn,
+    DocumentDeleted
 }
 
 public class ActivityLog

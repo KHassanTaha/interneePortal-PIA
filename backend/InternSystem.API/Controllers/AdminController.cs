@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using InternSystem.Core.Entities;
 using InternSystem.Infrastructure.Data;
+using InternSystem.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,8 +14,13 @@ namespace InternSystem.API.Controllers;
 public class AdminController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly FileService _files;
 
-    public AdminController(AppDbContext db) => _db = db;
+    public AdminController(AppDbContext db, FileService files)
+    {
+        _db = db;
+        _files = files;
+    }
 
     private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -240,6 +246,117 @@ public class AdminController : ControllerBase
         _db.Departments.Add(dept);
         await _db.SaveChangesAsync();
         return Ok(new { message = "Department created", deptId = dept.Id });
+    }
+
+    // ─── Document Approvals (all interns) ────────────────────────────────────
+    [HttpGet("documents")]
+    public async Task<IActionResult> GetDocuments([FromQuery] string? status, [FromQuery] int? internId)
+    {
+        var query = _db.DocumentUploads
+            .Include(d => d.Intern).ThenInclude(i => i.Department)
+            .Where(d => d.WithdrawnAt == null)
+            .AsQueryable();
+
+        if (internId.HasValue)
+            query = query.Where(d => d.InternId == internId.Value);
+
+        if (!string.IsNullOrEmpty(status) && Enum.TryParse<DocumentRequestStatus>(status, out var s))
+            query = query.Where(d => d.Status == s);
+
+        var docs = await query.OrderByDescending(d => d.UploadedAt).Select(d => new
+        {
+            d.Id,
+            internName = d.Intern.FullName,
+            department = d.Intern.Department.Name,
+            documentType = d.DocumentType.ToString(),
+            d.FilePath,
+            d.OriginalFileName,
+            status = d.Status.ToString(),
+            d.RejectionReason,
+            d.UploadedAt,
+            d.ApprovedAt
+        }).ToListAsync();
+
+        return Ok(docs);
+    }
+
+    [HttpPost("documents/{id}/approve")]
+    public async Task<IActionResult> ApproveDocument(int id)
+    {
+        var doc = await _db.DocumentUploads
+            .Include(d => d.Intern)
+            .FirstOrDefaultAsync(d => d.Id == id);
+        if (doc == null) return NotFound();
+
+        if (doc.Status != DocumentRequestStatus.Pending)
+            return BadRequest(new { message = "Only pending documents can be approved" });
+
+        doc.Status = DocumentRequestStatus.Approved;
+        doc.ApprovedByUserId = CurrentUserId;
+        doc.ApprovedAt = DateTime.UtcNow;
+
+        _db.ActivityLogs.Add(new ActivityLog
+        {
+            LogType = ActivityLogType.DocumentApproved,
+            Description = $"{doc.DocumentType} document approved for '{doc.Intern.FullName}'",
+            PerformedByUserId = CurrentUserId,
+            TargetInternId = doc.InternId,
+            DepartmentId = doc.Intern.DepartmentId
+        });
+
+        await _db.SaveChangesAsync();
+        return Ok(new { message = "Document approved" });
+    }
+
+    [HttpPost("documents/{id}/reject")]
+    public async Task<IActionResult> RejectDocument(int id, [FromBody] RejectRequest req)
+    {
+        var doc = await _db.DocumentUploads
+            .Include(d => d.Intern)
+            .FirstOrDefaultAsync(d => d.Id == id);
+        if (doc == null) return NotFound();
+
+        if (doc.Status != DocumentRequestStatus.Pending)
+            return BadRequest(new { message = "Only pending documents can be rejected" });
+
+        doc.Status = DocumentRequestStatus.Rejected;
+        doc.RejectionReason = req.Reason;
+
+        _db.ActivityLogs.Add(new ActivityLog
+        {
+            LogType = ActivityLogType.DocumentRejected,
+            Description = $"{doc.DocumentType} document rejected for '{doc.Intern.FullName}': {req.Reason}",
+            PerformedByUserId = CurrentUserId,
+            TargetInternId = doc.InternId,
+            DepartmentId = doc.Intern.DepartmentId
+        });
+
+        await _db.SaveChangesAsync();
+        return Ok(new { message = "Document rejected" });
+    }
+
+    [HttpDelete("documents/{id}")]
+    public async Task<IActionResult> DeleteDocument(int id)
+    {
+        var doc = await _db.DocumentUploads
+            .Include(d => d.Intern)
+            .FirstOrDefaultAsync(d => d.Id == id);
+        if (doc == null) return NotFound();
+
+        _files.DeleteFile(doc.FilePath);
+        _db.DocumentUploads.Remove(doc);
+
+        _db.ActivityLogs.Add(new ActivityLog
+        {
+            LogType = ActivityLogType.DocumentDeleted,
+            Description = $"{doc.DocumentType} document deleted for '{doc.Intern.FullName}'",
+            PerformedByUserId = CurrentUserId,
+            TargetInternId = doc.InternId,
+            DepartmentId = doc.Intern.DepartmentId
+        });
+
+        await _db.SaveChangesAsync();
+        return Ok(new { message = "Document deleted" });
     }
 }
 

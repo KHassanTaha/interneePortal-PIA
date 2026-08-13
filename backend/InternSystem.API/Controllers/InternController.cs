@@ -462,6 +462,130 @@ public class InternController : ControllerBase
         return Ok(new { message = "Certificate application submitted", certificateId = cert.Id });
     }
 
+    // ─── Document Uploads ────────────────────────────────────────────────────
+    [HttpGet("documents")]
+    public async Task<IActionResult> GetDocuments()
+    {
+        var intern = await GetCurrentIntern();
+        if (intern == null) return NotFound();
+
+        var docs = await _db.DocumentUploads
+            .Where(d => d.InternId == intern.Id)
+            .OrderByDescending(d => d.UploadedAt)
+            .Select(d => new
+            {
+                d.Id,
+                documentType = d.DocumentType.ToString(),
+                d.FilePath,
+                d.OriginalFileName,
+                status = d.Status.ToString(),
+                d.RejectionReason,
+                d.UploadedAt,
+                d.ApprovedAt,
+                withdrawn = d.WithdrawnAt != null
+            })
+            .ToListAsync();
+
+        return Ok(docs);
+    }
+
+    [HttpPost("documents")]
+    public async Task<IActionResult> UploadDocuments([FromForm] DocumentUploadRequest req)
+    {
+        var intern = await GetCurrentIntern();
+        if (intern == null) return NotFound();
+
+        var submissions = new[]
+        {
+            (File: req.CnicFile, Type: UploadDocumentType.Cnic),
+            (File: req.UniversityIdFile, Type: UploadDocumentType.UniversityId),
+            (File: req.ResumeFile, Type: UploadDocumentType.Resume)
+        };
+
+        if (submissions.Any(s => s.File == null))
+            return BadRequest(new { message = "CNIC, University ID and Resume are all required" });
+
+        long totalBytes = submissions.Sum(s => s.File!.Length);
+        if (totalBytes > DocumentUploadRules.MaxTotalSizeBytes)
+            return BadRequest(new { message = $"Total upload size exceeds the {DocumentUploadRules.MaxTotalSizeBytes / (1024 * 1024)} MB limit" });
+
+        foreach (var s in submissions)
+        {
+            if (s.File!.Length > DocumentUploadRules.MaxFileSizeBytes)
+                return BadRequest(new { message = $"{s.Type} exceeds the 5 MB per-file limit" });
+
+            var ext = Path.GetExtension(s.File.FileName);
+            if (!DocumentUploadRules.IsValidType(s.Type, ext))
+                return BadRequest(new { message = $"{s.Type} must be {(s.Type == UploadDocumentType.Resume ? "a PDF or image" : "an image (jpg/png)")}" });
+        }
+
+        var active = await _db.DocumentUploads
+            .Where(d => d.InternId == intern.Id && d.WithdrawnAt == null &&
+                (d.Status == DocumentRequestStatus.Pending || d.Status == DocumentRequestStatus.Approved))
+            .Select(d => d.DocumentType)
+            .ToListAsync();
+
+        var blocked = submissions.Where(s => active.Contains(s.Type)).Select(s => s.Type).ToList();
+        if (blocked.Count > 0)
+            return BadRequest(new { message = $"You already have an active {string.Join(", ", blocked)} upload" });
+
+        var created = new List<DocumentUpload>();
+        foreach (var s in submissions)
+        {
+            var path = await _files.SaveDocumentAsync(s.File!, intern.Id, s.Type.ToString());
+            created.Add(new DocumentUpload
+            {
+                InternId = intern.Id,
+                DocumentType = s.Type,
+                FilePath = path,
+                OriginalFileName = s.File!.FileName,
+                Status = DocumentRequestStatus.Pending,
+                UploadedAt = DateTime.UtcNow
+            });
+        }
+        _db.DocumentUploads.AddRange(created);
+
+        _db.ActivityLogs.Add(new ActivityLog
+        {
+            LogType = ActivityLogType.DocumentUploaded,
+            Description = $"Documents uploaded by '{intern.FullName}': {string.Join(", ", created.Select(c => c.DocumentType))}",
+            PerformedByUserId = CurrentUserId,
+            TargetInternId = intern.Id,
+            DepartmentId = intern.DepartmentId
+        });
+
+        await _db.SaveChangesAsync();
+        return Ok(new { message = "Documents submitted for approval", ids = created.Select(c => c.Id) });
+    }
+
+    [HttpPost("documents/{id}/withdraw")]
+    public async Task<IActionResult> WithdrawDocument(int id)
+    {
+        var intern = await GetCurrentIntern();
+        if (intern == null) return NotFound();
+
+        var doc = await _db.DocumentUploads
+            .FirstOrDefaultAsync(d => d.Id == id && d.InternId == intern.Id);
+        if (doc == null) return NotFound();
+
+        if (doc.Status != DocumentRequestStatus.Pending)
+            return BadRequest(new { message = "Only pending documents can be withdrawn" });
+
+        doc.WithdrawnAt = DateTime.UtcNow;
+
+        _db.ActivityLogs.Add(new ActivityLog
+        {
+            LogType = ActivityLogType.DocumentWithdrawn,
+            Description = $"'{intern.FullName}' withdrew their {doc.DocumentType} document",
+            PerformedByUserId = CurrentUserId,
+            TargetInternId = intern.Id,
+            DepartmentId = intern.DepartmentId
+        });
+
+        await _db.SaveChangesAsync();
+        return Ok(new { message = "Document withdrawn" });
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────────────────
     private static double CosineSimilarity(float[] a, float[] b)
     {
@@ -491,6 +615,12 @@ public class IdCardUploadRequest
     public IFormFile? StudentIdImage { get; set; }
     public IFormFile? CnicImage { get; set; }
     public IFormFile? Photo { get; set; }
+}
+public class DocumentUploadRequest
+{
+    public IFormFile? CnicFile { get; set; }
+    public IFormFile? UniversityIdFile { get; set; }
+    public IFormFile? ResumeFile { get; set; }
 }
 public record ApplyCertRequest(
     string ProjectName, string ProjectOutcomes, string LanguagesUsed, string? AdditionalNotes);

@@ -30,6 +30,19 @@ public class FileService
         return Path.Combine(subfolder, fileName).Replace("\\", "/");
     }
 
+    public async Task<string> SaveDocumentAsync(IFormFile file, int internId, string docType)
+    {
+        var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
+        var folder = Path.Combine(_uploadRoot, "documents", internId.ToString(), docType);
+        Directory.CreateDirectory(folder);
+        var filePath = Path.Combine(folder, fileName);
+
+        using var stream = new FileStream(filePath, FileMode.Create);
+        await file.CopyToAsync(stream);
+
+        return Path.Combine("documents", internId.ToString(), docType, fileName).Replace("\\", "/");
+    }
+
     public string GetAbsolutePath(string relativePath) =>
         Path.Combine(_uploadRoot, relativePath.Replace("/", "\\"));
 

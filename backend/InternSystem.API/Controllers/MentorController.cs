@@ -581,6 +581,126 @@ public class MentorController : ControllerBase
         await _db.SaveChangesAsync();
         return Ok(new { message = "Certificate rejected" });
     }
+
+    // ─── Document Approvals ──────────────────────────────────────────────────
+    [HttpGet("documents")]
+    public async Task<IActionResult> GetDocuments([FromQuery] string? status)
+    {
+        var mentor = await GetCurrentMentor();
+        if (mentor == null) return NotFound();
+
+        var query = _db.DocumentUploads
+            .Include(d => d.Intern).ThenInclude(i => i.Department)
+            .Where(d => d.Intern.MentorId == mentor.Id && d.WithdrawnAt == null)
+            .AsQueryable();
+
+        if (!string.IsNullOrEmpty(status) && Enum.TryParse<DocumentRequestStatus>(status, out var s))
+            query = query.Where(d => d.Status == s);
+
+        var docs = await query.OrderByDescending(d => d.UploadedAt).Select(d => new
+        {
+            d.Id,
+            internName = d.Intern.FullName,
+            department = d.Intern.Department.Name,
+            documentType = d.DocumentType.ToString(),
+            d.FilePath,
+            d.OriginalFileName,
+            status = d.Status.ToString(),
+            d.RejectionReason,
+            d.UploadedAt,
+            d.ApprovedAt
+        }).ToListAsync();
+
+        return Ok(docs);
+    }
+
+    [HttpPost("documents/{id}/approve")]
+    public async Task<IActionResult> ApproveDocument(int id)
+    {
+        var mentor = await GetCurrentMentor();
+        if (mentor == null) return NotFound();
+
+        var doc = await _db.DocumentUploads
+            .Include(d => d.Intern)
+            .FirstOrDefaultAsync(d => d.Id == id && d.Intern.MentorId == mentor.Id);
+        if (doc == null) return NotFound();
+
+        if (doc.Status != DocumentRequestStatus.Pending)
+            return BadRequest(new { message = "Only pending documents can be approved" });
+
+        doc.Status = DocumentRequestStatus.Approved;
+        doc.ApprovedByUserId = CurrentUserId;
+        doc.ApprovedAt = DateTime.UtcNow;
+
+        _db.ActivityLogs.Add(new ActivityLog
+        {
+            LogType = ActivityLogType.DocumentApproved,
+            Description = $"{doc.DocumentType} document approved for '{doc.Intern.FullName}'",
+            PerformedByUserId = CurrentUserId,
+            TargetInternId = doc.InternId,
+            DepartmentId = mentor.DepartmentId
+        });
+
+        await _db.SaveChangesAsync();
+        return Ok(new { message = "Document approved" });
+    }
+
+    [HttpPost("documents/{id}/reject")]
+    public async Task<IActionResult> RejectDocument(int id, [FromBody] RejectRequest req)
+    {
+        var mentor = await GetCurrentMentor();
+        if (mentor == null) return NotFound();
+
+        var doc = await _db.DocumentUploads
+            .Include(d => d.Intern)
+            .FirstOrDefaultAsync(d => d.Id == id && d.Intern.MentorId == mentor.Id);
+        if (doc == null) return NotFound();
+
+        if (doc.Status != DocumentRequestStatus.Pending)
+            return BadRequest(new { message = "Only pending documents can be rejected" });
+
+        doc.Status = DocumentRequestStatus.Rejected;
+        doc.RejectionReason = req.Reason;
+
+        _db.ActivityLogs.Add(new ActivityLog
+        {
+            LogType = ActivityLogType.DocumentRejected,
+            Description = $"{doc.DocumentType} document rejected for '{doc.Intern.FullName}': {req.Reason}",
+            PerformedByUserId = CurrentUserId,
+            TargetInternId = doc.InternId,
+            DepartmentId = mentor.DepartmentId
+        });
+
+        await _db.SaveChangesAsync();
+        return Ok(new { message = "Document rejected" });
+    }
+
+    [HttpDelete("documents/{id}")]
+    public async Task<IActionResult> DeleteDocument(int id)
+    {
+        var mentor = await GetCurrentMentor();
+        if (mentor == null) return NotFound();
+
+        var doc = await _db.DocumentUploads
+            .Include(d => d.Intern)
+            .FirstOrDefaultAsync(d => d.Id == id && d.Intern.MentorId == mentor.Id);
+        if (doc == null) return NotFound();
+
+        _files.DeleteFile(doc.FilePath);
+        _db.DocumentUploads.Remove(doc);
+
+        _db.ActivityLogs.Add(new ActivityLog
+        {
+            LogType = ActivityLogType.DocumentDeleted,
+            Description = $"{doc.DocumentType} document deleted for '{doc.Intern.FullName}'",
+            PerformedByUserId = CurrentUserId,
+            TargetInternId = doc.InternId,
+            DepartmentId = mentor.DepartmentId
+        });
+
+        await _db.SaveChangesAsync();
+        return Ok(new { message = "Document deleted" });
+    }
 }
 
 public record CreateInternRequest(
