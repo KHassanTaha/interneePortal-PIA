@@ -16,6 +16,7 @@ import AdminDashboard from '../screens/admin/DashboardScreen';
 import MentorManagementScreen from '../screens/admin/MentorManagementScreen';
 import AdminInternsScreen from '../screens/admin/AdminInternsScreen';
 import ActivityLogsScreen from '../screens/admin/ActivityLogsScreen';
+import AdminDocumentsScreen from '../screens/admin/DocumentsScreen';
 
 // Mentor
 import MentorDashboard from '../screens/mentor/DashboardScreen';
@@ -24,6 +25,7 @@ import AttendanceViewScreen from '../screens/mentor/AttendanceViewScreen';
 import AssignTaskScreen from '../screens/mentor/AssignTaskScreen';
 import GatePassApprovalScreen from '../screens/mentor/GatePassApprovalScreen';
 import MentorCertificatesScreen from '../screens/mentor/CertificatesScreen';
+import DocumentsApprovalScreen from '../screens/mentor/DocumentsApprovalScreen';
 
 // Intern
 import InternDashboard from '../screens/intern/DashboardScreen';
@@ -32,6 +34,7 @@ import TasksScreen from '../screens/intern/TasksScreen';
 import GatePassScreen from '../screens/intern/GatePassScreen';
 import CertificateScreen from '../screens/intern/CertificateScreen';
 import FaceEnrollScreen from '../screens/intern/FaceEnrollScreen';
+import DocumentsScreen from '../screens/intern/DocumentsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -66,6 +69,10 @@ function AdminTabs() {
         title: 'Logs',
         tabBarIcon: ({color}) => <Text style={{fontSize:20, color}}>📋</Text>
       }}/>
+      <Tab.Screen name="AdminDocuments" component={AdminDocumentsScreen} options={{
+        title: 'Documents',
+        tabBarIcon: ({color}) => <Text style={{fontSize:20, color}}>📁</Text>
+      }}/>
     </Tab.Navigator>
   );
 }
@@ -99,6 +106,10 @@ function MentorTabs() {
         title: 'Certificates',
         tabBarIcon: ({color}) => <Text style={{fontSize:20, color}}>🎓</Text>
       }}/>
+      <Tab.Screen name="MentorDocuments" component={DocumentsApprovalScreen} options={{
+        title: 'Documents',
+        tabBarIcon: ({color}) => <Text style={{fontSize:20, color}}>📁</Text>
+      }}/>
     </Tab.Navigator>
   );
 }
@@ -131,6 +142,10 @@ function InternTabs() {
       <Tab.Screen name="Certificate" component={CertificateScreen} options={{
         title: 'Certificate',
         tabBarIcon: ({color}) => <Text style={{fontSize:20, color}}>🎓</Text>
+      }}/>
+      <Tab.Screen name="Documents" component={DocumentsScreen} options={{
+        title: 'Documents',
+        tabBarIcon: ({color}) => <Text style={{fontSize:20, color}}>📁</Text>
       }}/>
     </Tab.Navigator>
   );
