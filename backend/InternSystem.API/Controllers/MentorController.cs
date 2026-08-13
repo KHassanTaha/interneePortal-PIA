@@ -167,6 +167,7 @@ public class MentorController : ControllerBase
             CNIC = req.CNIC,
             University = req.University,
             Degree = req.Degree,
+            Gender = req.Gender,
             StartDate = req.StartDate,
             EndDate = req.EndDate,
             CreatedAt = DateTime.UtcNow
@@ -515,6 +516,7 @@ public class MentorController : ControllerBase
             internName = c.Intern.FullName,
             department = c.Intern.Department.Name,
             c.ProjectName, c.ProjectOutcomes, c.LanguagesUsed, c.AdditionalNotes,
+            c.TechStack, c.InternWork, c.DepartmentHeadName,
             status = c.Status.ToString(),
             c.AppliedAt, c.ApprovedAt, c.RejectionReason, c.PdfPath
         }).ToListAsync();
@@ -534,6 +536,13 @@ public class MentorController : ControllerBase
         if (cert == null) return NotFound();
 
         if (req?.MentorNotes != null) cert.MentorProjectNotes = req.MentorNotes;
+
+        if (string.IsNullOrWhiteSpace(req?.TechStack) || string.IsNullOrWhiteSpace(req?.InternWork))
+            return BadRequest(new { message = "Tech stack and intern work are required to approve a certificate" });
+
+        cert.TechStack = req!.TechStack.Trim();
+        cert.InternWork = req.InternWork.Trim();
+        cert.DepartmentHeadName = req.DepartmentHeadName?.Trim();
 
         cert.Status = CertificateStatus.Approved;
         cert.ApprovedByMentorId = mentor.Id;
@@ -705,8 +714,8 @@ public class MentorController : ControllerBase
 
 public record CreateInternRequest(
     string? Username, string Password, string FullName, string? CNIC,
-    string? University, string? Degree, DateTime StartDate, DateTime EndDate, int? DepartmentId = null);
+    string? University, string? Degree, InternGender Gender, DateTime StartDate, DateTime EndDate, int? DepartmentId = null);
 public record AssignTaskRequest(int InternId, string Title, string Description, DateTime? Deadline);
 public record RejectRequest(string Reason);
-public record ApproveCertRequest(string? MentorNotes);
+public record ApproveCertRequest(string? MentorNotes, string? TechStack, string? InternWork, string? DepartmentHeadName);
 public record MentorResetPasswordRequest(string NewPassword);

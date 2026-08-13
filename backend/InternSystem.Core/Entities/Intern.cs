@@ -1,5 +1,11 @@
 namespace InternSystem.Core.Entities;
 
+public enum InternGender
+{
+    Male,
+    Female
+}
+
 public class Intern
 {
     public int Id { get; set; }
@@ -15,6 +21,7 @@ public class Intern
     public string? CNIC { get; set; }
     public string? University { get; set; }
     public string? Degree { get; set; }
+    public InternGender? Gender { get; set; }
 
     // Internship Period
     public DateTime StartDate { get; set; }

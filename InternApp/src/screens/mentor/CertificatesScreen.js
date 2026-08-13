@@ -13,6 +13,9 @@ export default function MentorCertificatesScreen() {
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [selectedCert, setSelectedCert] = useState(null);
   const [mentorNotes, setMentorNotes] = useState('');
+  const [techStack, setTechStack] = useState('');
+  const [internWork, setInternWork] = useState('');
+  const [departmentHead, setDepartmentHead] = useState('');
   const [processing, setProcessing] = useState(false);
   const [activeStatus, setActiveStatus] = useState('Applied');
 
@@ -28,9 +31,18 @@ export default function MentorCertificatesScreen() {
 
   const approve = async () => {
     if (!selectedCert) return;
+    if (!techStack.trim() || !internWork.trim()) {
+      Alert.alert('Required', 'Tech Stack and Intern Work are required');
+      return;
+    }
     setProcessing(true);
     try {
-      await client.post(`/mentor/certificates/${selectedCert.id}/approve`, {mentorNotes});
+      await client.post(`/mentor/certificates/${selectedCert.id}/approve`, {
+        mentorNotes,
+        techStack: techStack.trim(),
+        internWork: internWork.trim(),
+        departmentHeadName: departmentHead.trim() || null,
+      });
       Alert.alert('✅ Approved', 'Certificate PDF generated and sent to intern');
       setShowApproveModal(false);
       setSelectedCert(null);
@@ -113,7 +125,7 @@ export default function MentorCertificatesScreen() {
                   <TouchableOpacity
                     id={`approve-cert-${cert.id}`}
                     style={styles.approveBtn}
-                    onPress={() => { setSelectedCert(cert); setMentorNotes(''); setShowApproveModal(true); }}>
+                    onPress={() => { setSelectedCert(cert); setMentorNotes(''); setTechStack(''); setInternWork(''); setDepartmentHead(''); setShowApproveModal(true); }}>
                     <Text style={styles.approveBtnText}>✓ Approve</Text>
                   </TouchableOpacity>
                 </View>
@@ -130,15 +142,44 @@ export default function MentorCertificatesScreen() {
       <Modal visible={showApproveModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Approve Certificate</Text>
-            <Text style={styles.modalFor}>For: {selectedCert?.internName}</Text>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              <Text style={styles.modalTitle}>Approve Certificate</Text>
+              <Text style={styles.modalFor}>For: {selectedCert?.internName}</Text>
+            <Text style={styles.fieldLabel}>Tech Stack *</Text>
+            <TextInput
+              id="mentor-cert-techstack"
+              style={styles.notesInput}
+              placeholder="e.g. C#, .NET, SQL Server, React"
+              placeholderTextColor={theme.colors.textMuted}
+              value={techStack}
+              onChangeText={setTechStack}
+            />
+            <Text style={styles.fieldLabel}>Intern Work *</Text>
+            <TextInput
+              id="mentor-cert-work"
+              style={styles.notesInput}
+              placeholder="Describe the intern's work during the internship..."
+              placeholderTextColor={theme.colors.textMuted}
+              multiline numberOfLines={3}
+              value={internWork}
+              onChangeText={setInternWork}
+            />
+            <Text style={styles.fieldLabel}>Department Head Name</Text>
+            <TextInput
+              id="mentor-cert-depthead"
+              style={styles.notesInput}
+              placeholder="e.g. Mr. Junaid Raza"
+              placeholderTextColor={theme.colors.textMuted}
+              value={departmentHead}
+              onChangeText={setDepartmentHead}
+            />
             <Text style={styles.fieldLabel}>Additional Mentor Notes (Optional)</Text>
             <TextInput
               id="mentor-cert-notes"
               style={styles.notesInput}
               placeholder="Add any additional comments to the certificate..."
               placeholderTextColor={theme.colors.textMuted}
-              multiline numberOfLines={4}
+              multiline numberOfLines={3}
               value={mentorNotes}
               onChangeText={setMentorNotes}
             />
@@ -151,6 +192,7 @@ export default function MentorCertificatesScreen() {
                 {processing ? <ActivityIndicator color="#fff" /> : <Text style={styles.createBtnText}>Generate Certificate</Text>}
               </TouchableOpacity>
             </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>

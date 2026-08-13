@@ -13,6 +13,7 @@ export default function CreateInternScreen({navigation}) {
   const [cnic, setCnic] = useState('');
   const [university, setUniversity] = useState('');
   const [degree, setDegree] = useState('');
+  const [gender, setGender] = useState('Male');
   const [customUsername, setCustomUsername] = useState('');
 
   const [departments, setDepartments] = useState([]);
@@ -89,6 +90,7 @@ export default function CreateInternScreen({navigation}) {
         cnic: cnic.trim() || null,
         university: university.trim() || null,
         degree: degree.trim() || null,
+        gender: gender,
         departmentId: selectedDepartment?.id || null,
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
@@ -149,6 +151,23 @@ export default function CreateInternScreen({navigation}) {
         <Text style={styles.usernamePreviewTitle}>Auto-Generated Username Format:</Text>
         <Text style={styles.usernamePreviewValue}>🔑 {getAutoUsernamePreview()}</Text>
         <Text style={styles.usernamePreviewSub}>Automatically incremented in database (e.g. 001, 002, 003)</Text>
+      </View>
+
+      <View style={styles.field}>
+        <Text style={styles.label}>Gender *</Text>
+        <View style={styles.row}>
+          {['Male', 'Female'].map(g => (
+            <TouchableOpacity
+              key={g}
+              id={`gender-${g.toLowerCase()}`}
+              style={[styles.genderChip, gender === g && styles.genderChipSelected]}
+              onPress={() => setGender(g)}>
+              <Text style={[styles.genderChipText, gender === g && styles.genderChipTextSelected]}>
+                {g === 'Male' ? '👨 Male' : '👩 Female'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
       <View style={styles.field}>
@@ -274,6 +293,17 @@ const styles = StyleSheet.create({
   },
   deptChipText: {color: theme.colors.textSecondary, fontSize: 13, fontWeight: '600'},
   deptChipTextSelected: {color: theme.colors.primary, fontWeight: '700'},
+  genderChip: {
+    flex: 1, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12,
+    backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border,
+    marginRight: 10, alignItems: 'center',
+  },
+  genderChipSelected: {
+    backgroundColor: theme.colors.primary + '33',
+    borderColor: theme.colors.primary,
+  },
+  genderChipText: {color: theme.colors.textSecondary, fontSize: 13, fontWeight: '600'},
+  genderChipTextSelected: {color: theme.colors.primary, fontWeight: '700'},
   usernamePreviewCard: {
     backgroundColor: theme.colors.primary + '15', borderRadius: 12, padding: 14,
     marginBottom: 16, borderWidth: 1, borderColor: theme.colors.primary + '44',

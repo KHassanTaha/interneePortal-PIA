@@ -24,3 +24,6 @@ obj/
 # Operating System
 .DS_Store
 Thumbs.db
+
+# Runtime uploads (PDFs, documents, faces)
+uploads/

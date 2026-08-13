@@ -416,6 +416,7 @@ public class InternController : ControllerBase
             {
                 c.Id, status = c.Status.ToString(),
                 c.ProjectName, c.ProjectOutcomes, c.LanguagesUsed, c.AdditionalNotes,
+                c.TechStack, c.InternWork, c.DepartmentHeadName,
                 c.AppliedAt, c.ApprovedAt, c.RejectionReason, c.PdfPath
             }).FirstOrDefaultAsync();
 

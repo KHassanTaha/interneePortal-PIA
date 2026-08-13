@@ -33,5 +33,10 @@ public class Certificate
     // Mentor can override any intern-filled fields
     public string? MentorProjectNotes { get; set; }
 
+    // Filled by mentor at approval (appears on the certificate)
+    public string? TechStack { get; set; }
+    public string? InternWork { get; set; }
+    public string? DepartmentHeadName { get; set; }
+
     public DateTime AppliedAt { get; set; } = DateTime.UtcNow;
 }

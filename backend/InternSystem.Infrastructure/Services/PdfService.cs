@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Net;
 using InternSystem.Core.Entities;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -8,10 +10,12 @@ namespace InternSystem.Infrastructure.Services;
 public class PdfService
 {
     private readonly string _uploadRoot;
+    private readonly string _templateDir;
 
     public PdfService(string uploadRoot)
     {
         _uploadRoot = uploadRoot;
+        _templateDir = Path.Combine(AppContext.BaseDirectory, "Templates", "Certificates");
         QuestPDF.Settings.License = LicenseType.Community;
     }
 
@@ -125,110 +129,75 @@ public class PdfService
     }
 
     /// <summary>
-    /// Generates a PIA-style Internship Certificate PDF.
+    /// Generates a PIA-style Internship Certificate PDF from an HTML template.
+    /// Male and female interns get their own template file (wording/pronouns differ).
     /// </summary>
     public string GenerateCertificatePdf(Certificate certificate, Intern intern, Mentor mentor, Department department)
     {
-        var dateStr = DateTime.Now.ToString("dd MMMM, yyyy");
         var fileName = $"certificate_{certificate.Id}_{DateTime.Now.Ticks}.pdf";
         var pdfPath = Path.Combine(_uploadRoot, "pdfs", fileName);
+        Directory.CreateDirectory(Path.GetDirectoryName(pdfPath)!);
 
-        var document = Document.Create(container =>
+        var templateName = (intern.Gender ?? InternGender.Male) == InternGender.Female
+            ? "certificate_female.html"
+            : "certificate_male.html";
+        var templatePath = Path.Combine(_templateDir, templateName);
+        if (!File.Exists(templatePath))
+            throw new InvalidOperationException($"Certificate template '{templateName}' not found at {templatePath}");
+
+        var weeks = Math.Max(1, (int)Math.Round((intern.EndDate - intern.StartDate).TotalDays / 7));
+        var techStack = string.IsNullOrWhiteSpace(certificate.TechStack) ? certificate.LanguagesUsed : certificate.TechStack;
+        var internWork = string.IsNullOrWhiteSpace(certificate.InternWork) ? certificate.MentorProjectNotes : certificate.InternWork;
+
+        var html = File.ReadAllText(templatePath)
+            .Replace("{{FullName}}", Escape(intern.FullName))
+            .Replace("{{Degree}}", Escape(intern.Degree ?? "Bachelor of Computer Science"))
+            .Replace("{{University}}", Escape(intern.University ?? "University"))
+            .Replace("{{Weeks}}", $"{weeks}-Week")
+            .Replace("{{StartDate}}", intern.StartDate.ToString("d MMMM yyyy"))
+            .Replace("{{EndDate}}", intern.EndDate.ToString("d MMMM yyyy"))
+            .Replace("{{Department}}", Escape(department.Name))
+            .Replace("{{ProjectName}}", Escape(certificate.ProjectName ?? "official projects"))
+            .Replace("{{TechStack}}", Escape(techStack ?? "various technologies"))
+            .Replace("{{Outcomes}}", Escape(certificate.ProjectOutcomes ?? "—"))
+            .Replace("{{InternWork}}", Escape(internWork ?? "—"))
+            .Replace("{{DepartmentHead}}", Escape(certificate.DepartmentHeadName ?? ""))
+            .Replace("{{MentorName}}", Escape(mentor.FullName))
+            .Replace("{{MentorDesignation}}", Escape(mentor.Designation))
+            .Replace("{{RefNo}}", $"PIA/INT-{certificate.Id}/{DateTime.Now.Year}")
+            .Replace("{{Date}}", DateTime.Now.ToString("dd MMMM, yyyy"));
+
+        // Stage HTML + images together so relative image paths resolve
+        var tmpDir = Path.Combine(_uploadRoot, "tmp", Path.GetFileNameWithoutExtension(fileName));
+        Directory.CreateDirectory(tmpDir);
+        var tmpHtml = Path.Combine(tmpDir, "certificate.html");
+        File.WriteAllText(tmpHtml, html);
+        foreach (var img in new[] { "header.png", "watermark.png" })
         {
-            container.Page(page =>
-            {
-                page.Size(PageSizes.A4);
-                page.Margin(60);
+            var src = Path.Combine(_templateDir, img);
+            if (File.Exists(src)) File.Copy(src, Path.Combine(tmpDir, img), true);
+        }
 
-                page.Header().Element(ComposeHeader);
+        var psi = new ProcessStartInfo
+        {
+            FileName = "wkhtmltopdf",
+            Arguments = $"--enable-local-file-access --page-size A4 --margin-top 0 --margin-right 0 --margin-bottom 0 --margin-left 0 \"{tmpHtml}\" \"{pdfPath}\"",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false
+        };
+        using var proc = Process.Start(psi)!;
+        var stderr = proc.StandardError.ReadToEnd();
+        proc.WaitForExit();
+        Directory.Delete(tmpDir, true);
 
-                page.Content().Column(col =>
-                {
-                    col.Spacing(8);
+        if (proc.ExitCode != 0 || !File.Exists(pdfPath))
+            throw new InvalidOperationException($"wkhtmltopdf failed: {stderr}");
 
-                    // Student info top-left + date top-right
-                    col.Item().Row(row =>
-                    {
-                        row.RelativeItem().Column(left =>
-                        {
-                            left.Item().Text(intern.FullName).Bold().Italic().FontSize(12);
-                            left.Item().Text($"Student of {intern.Degree ?? "Bachelor of Computer Science"}").FontSize(11);
-                            left.Item().Text(intern.University ?? "University").FontSize(11);
-                        });
-                        row.ConstantItem(150).AlignRight().AlignBottom()
-                            .Text(dateStr).FontSize(11);
-                    });
-
-                    col.Item().PaddingTop(25).AlignCenter().Text("INTERNSHIP CERTIFICATE")
-                        .Bold().Italic().Underline().FontSize(14);
-
-                    col.Item().PaddingTop(20).Text(text =>
-                    {
-                        text.Span("This is to certify that ").FontSize(11);
-                        text.Span($"Mr./Ms. {intern.FullName}").Bold().Italic().FontSize(11);
-                        text.Span($", a bright student of {intern.Degree ?? "Bachelor of Computer Science"}").FontSize(11);
-                        text.Span($" from {intern.University ?? "University"}").FontSize(11);
-                        text.Span(" has successfully completed a ").FontSize(11);
-                        text.Span($"{Math.Round((intern.EndDate - intern.StartDate).TotalDays / 7)} Weeks").FontSize(11);
-                        text.Span(" of internship program with ").FontSize(11);
-                        text.Span("Pakistan International Airlines (PIA)").Bold().Italic().FontSize(11);
-                        text.Span($" from {intern.StartDate.ToString("d MMMM yyyy")} to {intern.EndDate.ToString("d MMMM yyyy")}.").FontSize(11);
-                    });
-
-                    col.Item().PaddingTop(12).Text(text =>
-                    {
-                        text.Span("During the internship, ").FontSize(11);
-                        text.Span($"Mr./Ms. {intern.FullName}").Bold().Italic().FontSize(11);
-                        text.Span($" made significant contributions to the ").FontSize(11);
-                        text.Span(department.Name).Bold().Italic().FontSize(11);
-                        text.Span(", actively participating in the development of official projects");
-                        if (!string.IsNullOrWhiteSpace(certificate.ProjectName))
-                        {
-                            text.Span($" ({certificate.ProjectName})").FontSize(11);
-                        }
-                        text.Span(" and demonstrating strong technical proficiency in ").FontSize(11);
-                        if (!string.IsNullOrWhiteSpace(certificate.LanguagesUsed))
-                        {
-                            text.Span(certificate.LanguagesUsed).Bold().Italic().FontSize(11);
-                        }
-                        text.Span(". Throughout the internship, showed great enthusiasm and professionalism.").FontSize(11);
-                    });
-
-                    if (!string.IsNullOrWhiteSpace(certificate.ProjectOutcomes))
-                    {
-                        col.Item().PaddingTop(12).Text(text =>
-                        {
-                            text.Span("Key Outcomes: ").Bold().FontSize(11);
-                            text.Span(certificate.ProjectOutcomes).FontSize(11);
-                        });
-                    }
-
-                    col.Item().PaddingTop(12).Text("He/She demonstrated keen interest and dedication in acquiring knowledge of departmental functions, consistently showing a high level of commitment, analytical ability, and problem-solving skills. His/Her inquisitiveness and strong work ethic enabled delivery of quality outcomes and a deeper understanding of assigned tasks.").FontSize(11);
-
-                    col.Item().PaddingTop(12).Text("We deeply appreciate the hard work, professionalism and exceptional performance, and we are confident that he/she will achieve great success in future career. We wish all the best in professional and academic pursuits.").FontSize(11);
-
-                    // Signature block (bottom right)
-                    col.Item().PaddingTop(50).AlignRight().Column(sig =>
-                    {
-                        sig.Item().Text("Oftg.Manager Application Development").FontSize(11);
-                        sig.Item().Text(mentor.FullName).FontSize(11);
-                        sig.Item().Text("Pakistan International Airlines").FontSize(11);
-                    });
-                });
-
-                page.Footer().AlignRight().Text(text =>
-                {
-                    text.Span("Page ").FontSize(9);
-                    text.CurrentPageNumber().FontSize(9);
-                    text.Span(" of ").FontSize(9);
-                    text.TotalPages().FontSize(9);
-                });
-            });
-        });
-
-        document.GeneratePdf(pdfPath);
         return Path.Combine("pdfs", fileName).Replace("\\", "/");
     }
+
+    private static string Escape(string? value) => WebUtility.HtmlEncode(value ?? "");
 
     private static void ComposeHeader(IContainer container)
     {

@@ -53,17 +53,6 @@ public class AuthController : ControllerBase
         if (user == null || !VerifyPassword(req.Password, user.PasswordHash))
             return Unauthorized(new { message = "Invalid credentials" });
 
-        // Check if intern account is expired
-        if (user.Role == UserRole.Intern && user.Intern != null)
-        {
-            if (DateTime.UtcNow > user.Intern.EndDate)
-            {
-                user.IsActive = false;
-                await _db.SaveChangesAsync();
-                return Unauthorized(new { message = "Internship period has ended. Account deactivated." });
-            }
-        }
-
         var accessToken = _jwt.GenerateAccessToken(user);
         var refreshToken = _jwt.GenerateRefreshToken();
 

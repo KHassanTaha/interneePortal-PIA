@@ -91,6 +91,20 @@ export default function CertificateScreen() {
             <Text style={styles.detailValue}>{cert.languagesUsed}</Text>
             <Text style={styles.detailLabel}>Outcomes</Text>
             <Text style={styles.detailValue}>{cert.projectOutcomes}</Text>
+            {cert.status === 'Approved' && (
+              <>
+                <Text style={styles.detailLabel}>Tech Stack (as verified)</Text>
+                <Text style={styles.detailValue}>{cert.techStack}</Text>
+                <Text style={styles.detailLabel}>Intern Work</Text>
+                <Text style={styles.detailValue}>{cert.internWork}</Text>
+                {cert.departmentHeadName ? (
+                  <>
+                    <Text style={styles.detailLabel}>Department Head</Text>
+                    <Text style={styles.detailValue}>{cert.departmentHeadName}</Text>
+                  </>
+                ) : null}
+              </>
+            )}
           </View>
 
           {cert.rejectionReason && (
