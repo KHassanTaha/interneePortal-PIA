@@ -496,6 +496,16 @@ public class MentorController : ControllerBase
     }
 
     // ─── Certificate Approvals ───────────────────────────────────────────────
+    [HttpGet("department-heads")]
+    public async Task<IActionResult> GetDepartmentHeads()
+    {
+        var heads = await _db.DepartmentHeads
+            .OrderByDescending(h => h.CreatedAt)
+            .Select(h => new { h.Id, h.Name, h.Designation, hasSignature = h.SignatureImagePath != null })
+            .ToListAsync();
+        return Ok(heads);
+    }
+
     [HttpGet("certificates")]
     public async Task<IActionResult> GetCertificates([FromQuery] string? status)
     {
@@ -540,15 +550,22 @@ public class MentorController : ControllerBase
         if (string.IsNullOrWhiteSpace(req?.TechStack) || string.IsNullOrWhiteSpace(req?.InternWork))
             return BadRequest(new { message = "Tech stack and intern work are required to approve a certificate" });
 
+        DepartmentHead? head = null;
+        if (req.DepartmentHeadId.HasValue)
+            head = await _db.DepartmentHeads.FirstOrDefaultAsync(h => h.Id == req.DepartmentHeadId.Value);
+        if (head == null)
+            return BadRequest(new { message = "A department head must be selected to approve a certificate" });
+
         cert.TechStack = req!.TechStack.Trim();
         cert.InternWork = req.InternWork.Trim();
-        cert.DepartmentHeadName = req.DepartmentHeadName?.Trim();
+        cert.DepartmentHeadName = head.Name;
+        cert.DepartmentHeadId = head.Id;
 
         cert.Status = CertificateStatus.Approved;
         cert.ApprovedByMentorId = mentor.Id;
         cert.ApprovedAt = DateTime.UtcNow;
 
-        var pdfPath = _pdf.GenerateCertificatePdf(cert, cert.Intern, mentor, cert.Intern.Department!);
+        var pdfPath = _pdf.GenerateCertificatePdf(cert, cert.Intern, cert.Intern.Department!, head);
         cert.PdfPath = pdfPath;
 
         _db.ActivityLogs.Add(new ActivityLog
@@ -717,5 +734,5 @@ public record CreateInternRequest(
     string? University, string? Degree, InternGender Gender, DateTime StartDate, DateTime EndDate, int? DepartmentId = null);
 public record AssignTaskRequest(int InternId, string Title, string Description, DateTime? Deadline);
 public record RejectRequest(string Reason);
-public record ApproveCertRequest(string? MentorNotes, string? TechStack, string? InternWork, string? DepartmentHeadName);
+public record ApproveCertRequest(string? MentorNotes, string? TechStack, string? InternWork, int? DepartmentHeadId);
 public record MentorResetPasswordRequest(string NewPassword);

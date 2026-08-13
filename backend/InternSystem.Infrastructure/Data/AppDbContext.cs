@@ -19,6 +19,7 @@ public class AppDbContext : DbContext
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
     public DbSet<AttendanceVerificationSession> AttendanceVerificationSessions => Set<AttendanceVerificationSession>();
     public DbSet<DocumentUpload> DocumentUploads => Set<DocumentUpload>();
+    public DbSet<DepartmentHead> DepartmentHeads => Set<DepartmentHead>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -110,6 +111,9 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
             e.HasOne(c => c.ApprovedByMentor).WithMany()
                 .HasForeignKey(c => c.ApprovedByMentorId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(c => c.DepartmentHead).WithMany()
+                .HasForeignKey(c => c.DepartmentHeadId)
                 .OnDelete(DeleteBehavior.Restrict);
             e.Property(c => c.Status).HasConversion<string>();
         });

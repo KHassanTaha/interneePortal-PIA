@@ -9,31 +9,30 @@
   .watermark {
     position: fixed; top: 50%; left: 50%;
     transform: translate(-50%, -50%);
-    opacity: 0.15; z-index: 0;
+    opacity: 0.10; z-index: 0;
   }
-  .watermark img { width: 520px; }
+  .watermark img { width: 360px; }
   .header-img { width: 100%; display: block; }
-  .content { position: relative; z-index: 1; padding: 18px 60px 40px; }
+  .content { position: relative; z-index: 1; padding: 18px 60px 50px; }
   .topline { display: flex; justify-content: space-between; font-size: 12pt; }
   .cert-title {
-    text-align: center; font-size: 16pt; font-weight: bold;
+    text-align: center; font-size: 17pt; font-weight: bold;
     font-style: italic; text-decoration: underline;
-    letter-spacing: 2px; margin: 30px 0 24px;
+    letter-spacing: 2px; margin: 30px 0 26px;
   }
-  p { font-size: 12pt; line-height: 1.55; text-align: justify; margin: 0 0 14px; }
-  .signatures { display: flex; justify-content: space-between; margin-top: 70px; }
-  .sig { text-align: center; font-size: 12pt; }
-  .sig .line { border-top: 1px solid #111; width: 230px; margin: 0 auto 4px; padding-top: 4px; }
-  .sig .name { font-weight: bold; }
+  p { font-size: 12.5pt; line-height: 1.55; text-align: justify; margin: 0 0 14px; }
+  .sig-block { text-align: right; margin-top: 50px; font-size: 12.5pt; }
+  .sig-block img { height: 55px; margin-bottom: 4px; }
+  .sig-block .name { font-weight: bold; margin-top: 6px; }
 </style>
 </head>
 <body>
-  <div class="watermark"><img src="watermark.png" alt=""/></div>
+  <div class="watermark"><img src="logo.png" alt=""/></div>
   <img class="header-img" src="header.png" alt=""/>
   <div class="content">
     <div class="topline">
       <div>
-        <div><b>{{FullName}}</b></div>
+        <div>{{FullName}}</div>
         <div>Student of {{Degree}}</div>
         <div>{{University}}</div>
       </div>
@@ -45,30 +44,23 @@
 
     <div class="cert-title">INTERNSHIP CERTIFICATE</div>
 
-    <p>This is to certify that <b><i>Ms. {{FullName}}</i></b>, a bright student of {{Degree}} from {{University}} has successfully completed a {{Weeks}} internship program with <b><i>Pakistan International Airlines (PIA)</i></b> from {{StartDate}} to {{EndDate}}.</p>
+    <p>This is to certify that <b><i>Ms. {{FullName}}</i></b>, a bright student of {{Degree}} from {{University}} has successfully completed a <b>{{WeeksWords}}</b> of internship program with <b><i>Pakistan International Airlines (PIA)</i></b> from {{StartDate}} to {{EndDate}}.</p>
 
-    <p>During the internship, <b><i>Ms. {{FullName}}</i></b> made significant contributions to the <b><i>{{Department}}</i></b>, actively participating in the development of official projects ({{ProjectName}}) and demonstrating strong technical proficiency in <b><i>{{TechStack}}</i></b>. Throughout the internship, she showed great enthusiasm and professionalism.</p>
-
-    <p><b>Key Outcomes:</b> {{Outcomes}}</p>
+    <p>During the internship, <b><i>Ms. {{FullName}}</i></b> made significant contributions to the <b><i>{{Department}}</i></b>, actively participating in the development of official projects ({{ProjectName}}) and demonstrating strong technical proficiency in <b><i>{{TechStack}}</i></b>. Throughout her internship, she showed her great enthusiasm and professionalism during her internship period.</p>
 
     <p><b>Internship Work:</b> {{InternWork}}</p>
 
-    <p>We deeply appreciate the hard work, professionalism and exceptional performance of <b><i>Ms. {{FullName}}</i></b>, and we are confident that she will achieve great success in her future career. We wish her all the best in her professional and academic pursuits.</p>
+    <p><b>Key Outcomes:</b> {{Outcomes}}</p>
 
-    <div class="signatures">
-      <div class="sig">
-        <div class="line">
-          <div class="name">{{DepartmentHead}}</div>
-          <div>Head of Department</div>
-        </div>
-      </div>
-      <div class="sig">
-        <div class="line">
-          <div class="name">{{MentorName}}</div>
-          <div>{{MentorDesignation}}</div>
-          <div>Pakistan International Airlines</div>
-        </div>
-      </div>
+    <p>She demonstrated keen interest and dedication in acquiring knowledge of departmental functions, consistently showing a high level of commitment, analytical ability, and problem-solving skills. Her inquisitiveness and strong work ethic enabled her to deliver quality outcomes and gain a deeper understanding of the assigned tasks.</p>
+
+    <p>We deeply appreciate her hard work, professionalism and exceptional performance, and we are confident that she will achieve great success in her future career. We wish all the best in her professional and academic pursuits.</p>
+
+    <div class="sig-block">
+      <img src="{{HeadSignature}}" alt="signature"/>
+      <div>{{HeadDesignation}}</div>
+      <div class="name">{{HeadName}}</div>
+      <div>Pakistan International Airlines</div>
     </div>
   </div>
 </body>

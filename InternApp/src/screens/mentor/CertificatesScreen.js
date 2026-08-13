@@ -15,7 +15,8 @@ export default function MentorCertificatesScreen() {
   const [mentorNotes, setMentorNotes] = useState('');
   const [techStack, setTechStack] = useState('');
   const [internWork, setInternWork] = useState('');
-  const [departmentHead, setDepartmentHead] = useState('');
+  const [departmentHead, setDepartmentHead] = useState(null);
+  const [heads, setHeads] = useState([]);
   const [processing, setProcessing] = useState(false);
   const [activeStatus, setActiveStatus] = useState('Applied');
 
@@ -29,10 +30,20 @@ export default function MentorCertificatesScreen() {
 
   useEffect(() => { fetchCerts(); }, [activeStatus]);
 
+  useEffect(() => {
+    client.get('/mentor/department-heads')
+      .then(res => setHeads(res.data.filter(h => h.hasSignature)))
+      .catch(() => {});
+  }, []);
+
   const approve = async () => {
     if (!selectedCert) return;
     if (!techStack.trim() || !internWork.trim()) {
       Alert.alert('Required', 'Tech Stack and Intern Work are required');
+      return;
+    }
+    if (!departmentHead) {
+      Alert.alert('Required', 'Select a department head to sign the certificate');
       return;
     }
     setProcessing(true);
@@ -41,7 +52,7 @@ export default function MentorCertificatesScreen() {
         mentorNotes,
         techStack: techStack.trim(),
         internWork: internWork.trim(),
-        departmentHeadName: departmentHead.trim() || null,
+        departmentHeadId: departmentHead.id,
       });
       Alert.alert('✅ Approved', 'Certificate PDF generated and sent to intern');
       setShowApproveModal(false);
@@ -125,7 +136,7 @@ export default function MentorCertificatesScreen() {
                   <TouchableOpacity
                     id={`approve-cert-${cert.id}`}
                     style={styles.approveBtn}
-                    onPress={() => { setSelectedCert(cert); setMentorNotes(''); setTechStack(''); setInternWork(''); setDepartmentHead(''); setShowApproveModal(true); }}>
+                    onPress={() => { setSelectedCert(cert); setMentorNotes(''); setTechStack(''); setInternWork(''); setDepartmentHead(null); setShowApproveModal(true); }}>
                     <Text style={styles.approveBtnText}>✓ Approve</Text>
                   </TouchableOpacity>
                 </View>
@@ -164,15 +175,24 @@ export default function MentorCertificatesScreen() {
               value={internWork}
               onChangeText={setInternWork}
             />
-            <Text style={styles.fieldLabel}>Department Head Name</Text>
-            <TextInput
-              id="mentor-cert-depthead"
-              style={styles.notesInput}
-              placeholder="e.g. Mr. Junaid Raza"
-              placeholderTextColor={theme.colors.textMuted}
-              value={departmentHead}
-              onChangeText={setDepartmentHead}
-            />
+            <Text style={styles.fieldLabel}>Department Head (signs the certificate) *</Text>
+            {heads.length === 0 ? (
+              <Text style={styles.noHeads}>No department heads with signatures yet. Ask an admin to add one in the Signatories tab.</Text>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.headScroll}>
+                {heads.map(h => (
+                  <TouchableOpacity
+                    key={h.id}
+                    id={`head-option-${h.id}`}
+                    style={[styles.headChip, departmentHead?.id === h.id && styles.headChipSelected]}
+                    onPress={() => setDepartmentHead(h)}>
+                    <Text style={[styles.headChipText, departmentHead?.id === h.id && styles.headChipTextSelected]}>
+                      🖋️ {h.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
             <Text style={styles.fieldLabel}>Additional Mentor Notes (Optional)</Text>
             <TextInput
               id="mentor-cert-notes"
@@ -231,6 +251,12 @@ const styles = StyleSheet.create({
   modalTitle: {color:theme.colors.text, fontSize:18, fontWeight:'700'},
   modalFor: {color:theme.colors.textSecondary, fontSize:14, marginBottom:16},
   fieldLabel: {color:theme.colors.textSecondary, fontSize:12, fontWeight:'600', marginBottom:6},
+  noHeads: {color:theme.colors.textMuted, fontSize:12, marginBottom:12},
+  headScroll: {marginBottom:12},
+  headChip: {paddingHorizontal:14, paddingVertical:8, borderRadius:20, backgroundColor:theme.colors.card, borderWidth:1, borderColor:theme.colors.border, marginRight:8},
+  headChipSelected: {backgroundColor:theme.colors.primary+'33', borderColor:theme.colors.primary},
+  headChipText: {color:theme.colors.textSecondary, fontSize:13, fontWeight:'600'},
+  headChipTextSelected: {color:theme.colors.primary, fontWeight:'700'},
   notesInput: {backgroundColor:theme.colors.card, borderRadius:10, borderWidth:1, borderColor:theme.colors.border, color:theme.colors.text, paddingHorizontal:14, paddingVertical:12, height:100, textAlignVertical:'top', marginBottom:12},
   modalHint: {color:theme.colors.textMuted, fontSize:12, marginBottom:16},
   modalActions: {flexDirection:'row', gap:12},

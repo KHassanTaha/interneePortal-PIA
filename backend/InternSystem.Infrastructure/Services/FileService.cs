@@ -15,6 +15,7 @@ public class FileService
         Directory.CreateDirectory(Path.Combine(uploadRoot, "certificates"));
         Directory.CreateDirectory(Path.Combine(uploadRoot, "pdfs"));
         Directory.CreateDirectory(Path.Combine(uploadRoot, "faces"));
+        Directory.CreateDirectory(Path.Combine(uploadRoot, "signatures"));
     }
 
     public async Task<string> SaveFileAsync(IFormFile file, string subfolder)
@@ -45,6 +46,25 @@ public class FileService
 
     public string GetAbsolutePath(string relativePath) =>
         Path.Combine(_uploadRoot, relativePath.Replace("/", "\\"));
+
+    /// <summary>
+    /// Saves a department head's signature photo (jpg/png only) and returns the stored relative path.
+    /// </summary>
+    public async Task<string?> SaveSignatureAsync(IFormFile file, int headId)
+    {
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (ext is not ".jpg" and not ".jpeg" and not ".png")
+            throw new InvalidOperationException("Signature must be an image (jpg/png)");
+
+        var fileName = $"head_{headId}{ext}";
+        var folder = Path.Combine(_uploadRoot, "signatures");
+        var filePath = Path.Combine(folder, fileName);
+
+        using var stream = new FileStream(filePath, FileMode.Create);
+        await file.CopyToAsync(stream);
+
+        return Path.Combine("signatures", fileName).Replace("\\", "/");
+    }
 
     public void DeleteFile(string relativePath)
     {

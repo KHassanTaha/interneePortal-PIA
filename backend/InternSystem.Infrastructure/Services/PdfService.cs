@@ -131,8 +131,9 @@ public class PdfService
     /// <summary>
     /// Generates a PIA-style Internship Certificate PDF from an HTML template.
     /// Male and female interns get their own template file (wording/pronouns differ).
+    /// The certificate is signed by the department head's signature photo.
     /// </summary>
-    public string GenerateCertificatePdf(Certificate certificate, Intern intern, Mentor mentor, Department department)
+    public string GenerateCertificatePdf(Certificate certificate, Intern intern, Department department, DepartmentHead head)
     {
         var fileName = $"certificate_{certificate.Id}_{DateTime.Now.Ticks}.pdf";
         var pdfPath = Path.Combine(_uploadRoot, "pdfs", fileName);
@@ -153,29 +154,35 @@ public class PdfService
             .Replace("{{FullName}}", Escape(intern.FullName))
             .Replace("{{Degree}}", Escape(intern.Degree ?? "Bachelor of Computer Science"))
             .Replace("{{University}}", Escape(intern.University ?? "University"))
-            .Replace("{{Weeks}}", $"{weeks}-Week")
-            .Replace("{{StartDate}}", intern.StartDate.ToString("d MMMM yyyy"))
-            .Replace("{{EndDate}}", intern.EndDate.ToString("d MMMM yyyy"))
+            .Replace("{{WeeksWords}}", $"{NumberToWords(weeks)} Weeks")
+            .Replace("{{StartDate}}", OrdinalDate(intern.StartDate))
+            .Replace("{{EndDate}}", OrdinalDate(intern.EndDate))
             .Replace("{{Department}}", Escape(department.Name))
             .Replace("{{ProjectName}}", Escape(certificate.ProjectName ?? "official projects"))
             .Replace("{{TechStack}}", Escape(techStack ?? "various technologies"))
-            .Replace("{{Outcomes}}", Escape(certificate.ProjectOutcomes ?? "—"))
             .Replace("{{InternWork}}", Escape(internWork ?? "—"))
-            .Replace("{{DepartmentHead}}", Escape(certificate.DepartmentHeadName ?? ""))
-            .Replace("{{MentorName}}", Escape(mentor.FullName))
-            .Replace("{{MentorDesignation}}", Escape(mentor.Designation))
+            .Replace("{{Outcomes}}", Escape(certificate.ProjectOutcomes ?? "—"))
+            .Replace("{{HeadName}}", Escape(head.Name))
+            .Replace("{{HeadDesignation}}", Escape(head.Designation))
+            .Replace("{{HeadSignature}}", "sig.png")
             .Replace("{{RefNo}}", $"PIA/INT-{certificate.Id}/{DateTime.Now.Year}")
-            .Replace("{{Date}}", DateTime.Now.ToString("dd MMMM, yyyy"));
+            .Replace("{{Date}}", $"{OrdinalDay(DateTime.Now.Day)} {DateTime.Now:MMMM, yyyy}");
 
         // Stage HTML + images together so relative image paths resolve
         var tmpDir = Path.Combine(_uploadRoot, "tmp", Path.GetFileNameWithoutExtension(fileName));
         Directory.CreateDirectory(tmpDir);
         var tmpHtml = Path.Combine(tmpDir, "certificate.html");
         File.WriteAllText(tmpHtml, html);
-        foreach (var img in new[] { "header.png", "watermark.png" })
+        foreach (var img in new[] { "header.png", "logo.png" })
         {
             var src = Path.Combine(_templateDir, img);
             if (File.Exists(src)) File.Copy(src, Path.Combine(tmpDir, img), true);
+        }
+
+        if (!string.IsNullOrEmpty(head.SignatureImagePath))
+        {
+            var sigSrc = Path.Combine(_uploadRoot, head.SignatureImagePath.Replace("\\", "/"));
+            if (File.Exists(sigSrc)) File.Copy(sigSrc, Path.Combine(tmpDir, "sig.png"), true);
         }
 
         var psi = new ProcessStartInfo
@@ -195,6 +202,25 @@ public class PdfService
             throw new InvalidOperationException($"wkhtmltopdf failed: {stderr}");
 
         return Path.Combine("pdfs", fileName).Replace("\\", "/");
+    }
+
+    private static string OrdinalDay(int day) =>
+        day % 100 is 11 or 12 or 13 ? $"{day}th"
+        : day % 10 == 1 ? $"{day}st"
+        : day % 10 == 2 ? $"{day}nd"
+        : day % 10 == 3 ? $"{day}rd"
+        : $"{day}th";
+
+    private static string OrdinalDate(DateTime d) => $"{OrdinalDay(d.Day)} {d:MMMM yyyy}";
+
+    private static string NumberToWords(int n)
+    {
+        var ones = new[] { "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
+            "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen" };
+        var tens = new[] { "", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety" };
+        if (n < 20) return ones[n];
+        if (n < 100) return $"{tens[n / 10]}{(n % 10 == 0 ? "" : "-" + ones[n % 10])}";
+        return n.ToString();
     }
 
     private static string Escape(string? value) => WebUtility.HtmlEncode(value ?? "");

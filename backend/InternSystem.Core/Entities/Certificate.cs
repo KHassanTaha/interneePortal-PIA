@@ -37,6 +37,8 @@ public class Certificate
     public string? TechStack { get; set; }
     public string? InternWork { get; set; }
     public string? DepartmentHeadName { get; set; }
+    public int? DepartmentHeadId { get; set; }
+    public DepartmentHead? DepartmentHead { get; set; }
 
     public DateTime AppliedAt { get; set; } = DateTime.UtcNow;
 }

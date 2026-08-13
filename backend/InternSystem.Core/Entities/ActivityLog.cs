@@ -23,7 +23,10 @@ public enum ActivityLogType
     DocumentApproved,
     DocumentRejected,
     DocumentWithdrawn,
-    DocumentDeleted
+    DocumentDeleted,
+    DepartmentHeadCreated,
+    DepartmentHeadUpdated,
+    DepartmentHeadDeleted
 }
 
 public class ActivityLog

@@ -358,6 +358,102 @@ public class AdminController : ControllerBase
         await _db.SaveChangesAsync();
         return Ok(new { message = "Document deleted" });
     }
+
+    // ─── Department Heads ────────────────────────────────────────────────────
+    [HttpGet("department-heads")]
+    public async Task<IActionResult> GetDepartmentHeads()
+    {
+        var heads = await _db.DepartmentHeads
+            .OrderByDescending(h => h.CreatedAt)
+            .Select(h => new
+            {
+                h.Id, h.Name, h.Designation, h.SignatureImagePath, h.CreatedAt
+            }).ToListAsync();
+        return Ok(heads);
+    }
+
+    [HttpPost("department-heads")]
+    public async Task<IActionResult> CreateDepartmentHead(
+        [FromForm] string name, [FromForm] string? designation, IFormFile? signature)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return BadRequest(new { message = "Name is required" });
+
+        var head = new DepartmentHead
+        {
+            Name = name.Trim(),
+            Designation = string.IsNullOrWhiteSpace(designation) ? "Head of Department" : designation.Trim(),
+            CreatedAt = DateTime.UtcNow
+        };
+        _db.DepartmentHeads.Add(head);
+        await _db.SaveChangesAsync();
+
+        if (signature != null)
+        {
+            head.SignatureImagePath = await _files.SaveSignatureAsync(signature, head.Id);
+            await _db.SaveChangesAsync();
+        }
+
+        _db.ActivityLogs.Add(new ActivityLog
+        {
+            LogType = ActivityLogType.DepartmentHeadCreated,
+            Description = $"Department head '{head.Name}' created with {(signature != null ? "signature" : "no signature")}",
+            PerformedByUserId = CurrentUserId
+        });
+
+        return Ok(new { message = "Department head created", headId = head.Id });
+    }
+
+    [HttpPut("department-heads/{id}")]
+    public async Task<IActionResult> UpdateDepartmentHead(
+        int id, [FromForm] string? name, [FromForm] string? designation, IFormFile? signature)
+    {
+        var head = await _db.DepartmentHeads.FirstOrDefaultAsync(h => h.Id == id);
+        if (head == null) return NotFound();
+
+        if (!string.IsNullOrWhiteSpace(name)) head.Name = name.Trim();
+        if (!string.IsNullOrWhiteSpace(designation)) head.Designation = designation.Trim();
+
+        if (signature != null)
+        {
+            var newPath = await _files.SaveSignatureAsync(signature, head.Id);
+            if (!string.IsNullOrEmpty(head.SignatureImagePath))
+                _files.DeleteFile(head.SignatureImagePath);
+            head.SignatureImagePath = newPath;
+        }
+
+        await _db.SaveChangesAsync();
+
+        _db.ActivityLogs.Add(new ActivityLog
+        {
+            LogType = ActivityLogType.DepartmentHeadUpdated,
+            Description = $"Department head '{head.Name}' updated",
+            PerformedByUserId = CurrentUserId
+        });
+
+        return Ok(new { message = "Department head updated" });
+    }
+
+    [HttpDelete("department-heads/{id}")]
+    public async Task<IActionResult> DeleteDepartmentHead(int id)
+    {
+        var head = await _db.DepartmentHeads.FirstOrDefaultAsync(h => h.Id == id);
+        if (head == null) return NotFound();
+
+        if (!string.IsNullOrEmpty(head.SignatureImagePath))
+            _files.DeleteFile(head.SignatureImagePath);
+        _db.DepartmentHeads.Remove(head);
+
+        _db.ActivityLogs.Add(new ActivityLog
+        {
+            LogType = ActivityLogType.DepartmentHeadDeleted,
+            Description = $"Department head '{head.Name}' deleted",
+            PerformedByUserId = CurrentUserId
+        });
+
+        await _db.SaveChangesAsync();
+        return Ok(new { message = "Department head deleted" });
+    }
 }
 
 public record CreateMentorRequest(string Username, string Password, string FullName, string Designation, int DepartmentId);

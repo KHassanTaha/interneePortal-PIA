@@ -17,6 +17,7 @@ import MentorManagementScreen from '../screens/admin/MentorManagementScreen';
 import AdminInternsScreen from '../screens/admin/AdminInternsScreen';
 import ActivityLogsScreen from '../screens/admin/ActivityLogsScreen';
 import AdminDocumentsScreen from '../screens/admin/DocumentsScreen';
+import DepartmentHeadsScreen from '../screens/admin/DepartmentHeadsScreen';
 
 // Mentor
 import MentorDashboard from '../screens/mentor/DashboardScreen';
@@ -72,6 +73,10 @@ function AdminTabs() {
       <Tab.Screen name="AdminDocuments" component={AdminDocumentsScreen} options={{
         title: 'Documents',
         tabBarIcon: ({color}) => <Text style={{fontSize:20, color}}>📁</Text>
+      }}/>
+      <Tab.Screen name="DeptHeads" component={DepartmentHeadsScreen} options={{
+        title: 'Signatories',
+        tabBarIcon: ({color}) => <Text style={{fontSize:20, color}}>🖋️</Text>
       }}/>
     </Tab.Navigator>
   );
