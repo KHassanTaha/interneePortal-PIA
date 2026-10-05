@@ -296,3 +296,47 @@ Session that (re)implemented and verified certificate templates, gatepass layout
 - **Status:** implemented (unchanged behaviour, decision recorded).
 - **ID note:** the owner issued this as "D-S12"; D-S12 was already assigned to
   anti-spoof Path A, so this is **D-S17**.
+
+### D-S19 — Vulnerable transitives pinned at the top level
+
+- **Decision:** the four vulnerable transitives reported by
+  `dotnet list package --vulnerable --include-transitive` are now pinned as
+  explicit `PackageReference` entries in **both**
+  `InternSystem.Infrastructure.csproj` and `InternSystem.API.csproj`, so
+  NuGet resolves them upward instead of waiting for
+  `Microsoft.Data.SqlClient` 5.1.5 to bump.
+
+| Package | Was | Pinned to | Advisory cleared |
+|---|---|---|---|
+| `Microsoft.Extensions.Caching.Memory` | 8.0.0 | **8.0.1** | GHSA-qj66-m88j-hmgj (High) |
+| `System.Text.Json` | 8.0.4 | **8.0.6** | GHSA-8g4q-xg66-9fp4 (High) |
+| `Azure.Identity` | 1.10.3 | **1.16.0** | GHSA-wvxc-855f-jvrv (Mod), GHSA-m5vv-6r4h-3vj9 (Mod) |
+| `Microsoft.Identity.Client` | 4.56.0 | **4.90.1** | GHSA-x674-v45j-fwxw (Low), GHSA-m5vv-6r4h-3vj9 (Mod) |
+| `System.Formats.Asn1` | 5.0.0 | **8.0.2** | GHSA-447r-wph3-92pm (High) |
+
+- **Rationale (one line, as required):** these are transitives of
+  `Microsoft.Data.SqlClient` 5.1.5, which pulls them in unpatched; pinning
+  upward is standard .NET practice and avoids waiting on the parent.
+
+- **`Azure.Identity` could not go to latest.** 1.21.0 pulls
+  `Azure.Core` 1.53.0, which requires `System.Text.Json >= 10.0.3` and fails
+  restore with `NU1605` downgrade. 1.16.0 is the newest release that stays on
+  `System.Text.Json` 8.0.6 via `Azure.Core` 1.47.3.
+
+- **`System.Formats.Asn1` required a major bump, and this is flagged.**
+  Neither it nor `System.Security.Cryptography.Cng` has a patched release in
+  the 5.x line — `5.0.0` is the *only* 5.x version of each on NuGet. Every
+  `Microsoft.Data.SqlClient` 5.x (5.1.5 → 5.2.2) depends on `Cng 5.0.0`; only
+  SqlClient 6.x drops that dependency. So the options were: pin Asn1 itself to
+  8.0.2 (major bump of the vulnerable transitive, parent untouched), bump
+  SqlClient to 6.x (major bump of the driver EF Core depends on), or accept the
+  residual High. The first was chosen: it clears the advisory, builds clean,
+  and does not move the SQL driver. `AsnReader`/`AsnWriter` — the only surface
+  `Cng` 5.0.0 uses — have been stable since 5.0.
+  **Owner ruling was requested before applying this one; see B14.** Runtime
+  behaviour of that crypto path has **not** been verified on-device.
+
+- **Verification:** `dotnet build -c Release` succeeds with 0 warnings, 0
+  errors. `dotnet list package --vulnerable --include-transitive` reports
+  **0 vulnerable packages** in all three projects. `dotnet test` runs but the
+  solution still contains **no test projects**, so it asserts nothing.
