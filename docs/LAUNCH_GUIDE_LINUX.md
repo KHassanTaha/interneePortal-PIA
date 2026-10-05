@@ -176,13 +176,53 @@ Fetch them once per machine before starting the API:
 mkdir -p backend/InternSystem.API/Models/AI
 cd backend/InternSystem.API/Models/AI
 
-# <SOURCE_URL> — see docs/DEVELOPMENT_CREDENTIALS.md §5 for the real locations
-curl -L -o facenet.onnx   "<SOURCE_URL>/facenet.onnx"     # 248 MB, ArcFace recognition
-curl -L -o ultraface.onnx "<SOURCE_URL>/ultraface.onnx"   # 1.2 MB, face detection
-curl -L -o antispoof.onnx "<SOURCE_URL>/antispoof.onnx"   # 1.7 MB, liveness / anti-spoofing
+# --- ultraface.onnx (1.2 MB) — face detection. Drop-in, no conversion. ---
+curl -L -o ultraface.onnx \
+  "https://raw.githubusercontent.com/Linzaer/Ultra-Light-Fast-Generic-Face-Detector-1MB/master/models/RFB-320/version-RFB-320.onnx"
 
-ls -la *.onnx    # verify all three exist and are non-zero
+# --- facenet.onnx (248 MB) — ArcFace 512-D embedding. Drop-in, no conversion. ---
+# NB: the upstream file is named arc.onnx; `-o facenet.onnx` renames it on the way in.
+curl -L -o facenet.onnx \
+  "https://huggingface.co/garavv/arcface-onnx/resolve/main/arc.onnx"
+
+ls -la *.onnx    # verify both exist and are non-zero
 ```
+
+#### `antispoof.onnx` — NOT a plain download. Pick a path.
+
+The code (`FaceRecognitionService.cs:206-208`) expects a **2-class** model
+where `index 1 == real`, fed **BGR, raw 0-255**. The convenient Hugging Face
+export is **3-class** `[live, print, replay]` and expects **`pixel/255`**.
+Dropping it in unchanged yields meaningless anti-spoof scores.
+
+**Path A — faithful (recommended).** Convert the original 2-class model:
+
+```bash
+git clone https://github.com/minivision-ai/Silent-Face-Anti-Spoofing
+cd Silent-Face-Anti-Spoofing && pip install torch onnx
+python - <<'PY'
+import torch, onnx
+from model_lib.MiniFASNet import MiniFASNetV2
+model = MiniFASNetV2(num_classes=2, input_size=(80, 80), conv6_kernel=(3, 3)).to("cpu")
+model.load_state_dict(torch.load("resources/anti_spoof_models/2.7_80x80_MiniFASNetV2.pth", map_location="cpu"))
+model.eval()
+torch.onnx.export(model, torch.randn(1, 3, 80, 80), "antispoof.onnx",
+                  input_names=["input"], output_names=["output"],
+                  opset_version=11, dynamic_axes={"input": {0: "batch"}})
+print("wrote antispoof.onnx (2-class, BGR, raw 0-255)")
+PY
+cp antispoof.onnx ../../backend/InternSystem.API/Models/AI/
+```
+
+No code change needed on Path A.
+
+**Path B — faster fetch, needs 2 code tweaks.** Use the 3-class HF export,
+then fix preprocessing (divide by 255) and the score
+(`real = 1 - (print + replay)`) in `FaceRecognitionService.cs`.
+**Not yet written into this guide — it is a code change and needs a tracked
+task.** Ask before choosing it.
+
+Source spec: `docs/archived/FACE_RECOGNITION_AND_SYSTEM_GUIDE.md` §7.3.
 
 ### 5.1 Build & start
 
