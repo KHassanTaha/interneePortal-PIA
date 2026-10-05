@@ -340,3 +340,40 @@ Session that (re)implemented and verified certificate templates, gatepass layout
   errors. `dotnet list package --vulnerable --include-transitive` reports
   **0 vulnerable packages** in all three projects. `dotnet test` runs but the
   solution still contains **no test projects**, so it asserts nothing.
+
+- **Amendment 2026-10-06 (owner ruling):** `System.Formats.Asn1` was pinned to
+  8.0.2 to clear a High advisory. **Reverted.** The exploited path requires a
+  malicious certificate presented during a SQL Server encrypted connection;
+  this deployment is localhost/dev with `TrustServerCertificate=True` outside
+  production and the certificate chain is under developer control. A
+  three-major-version bump of a security-critical transitive with no test
+  coverage is a worse risk than the theoretical advisory it removes. The
+  honest choice is to carry the residual High with a written acceptance and
+  schedule the real fix when the .NET SDK is next bumped. The four in-major
+  pins above stand. **Residual state: exactly one High
+  (`System.Formats.Asn1` 5.0.0, GHSA-447r-wph3-92pm) in API and
+  Infrastructure; Core is clean. Real fix tracked as W4.10.**
+
+### D-S20 — FaceEnrolled is a maintained mirror, not a dead field
+
+- **Decision:** Keep `Intern.FaceEnrolled` as a maintained boolean mirror of
+  `FaceEnrollmentStatus == Approved`. Do not remove it, do not deprecate the
+  reads, do not change the login response shape.
+- **Rationale:** The field is exposed as a live API contract
+  (`AuthController.cs:124`) and consumed by the mobile app
+  (`AdminInternsScreen.js:371-373`, `:452`, `:481`). The guard at
+  `AdminController.cs:860` / `MentorController.cs:471` reads it as a
+  defensive OR. Coordinated removal would be a frontend + backend change with
+  no user-visible benefit.
+- **Correction this entry records:** an earlier agent report claimed
+  `FaceEnrolled` was never written `true` and therefore dead. That was wrong.
+  The original grep pattern (`FaceEnrolled = `) matched only the three
+  `false` assignments and missed the tuple form `("FaceEnrolled", true)` at
+  `AdminController.cs:585` and `MentorController.cs:381`. Removing the
+  `false` assignments would have stranded the mirror at `true`, permanently
+  tripped the reset guard, and frozen the app UI. A too-narrow search
+  pattern, exactly the failure mode AGENTS.md §10.6 names.
+- **Constraint on future changes:** Any code that sets the enum to or from
+  Approved must set the boolean in the same operation. Test coverage for this
+  sync is scheduled under W2.8.
+- **Status:** implemented (no behaviour change; documented contract).

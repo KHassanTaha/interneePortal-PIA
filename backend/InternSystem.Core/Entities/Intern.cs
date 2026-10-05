@@ -44,7 +44,14 @@ public class Intern
 
     // Face Recognition
     public string? FaceEmbeddingJson { get; set; } // Stored as JSON array
-    public bool FaceEnrolled { get; set; } = false; // Active only after admin/mentor approval
+    /// <summary>
+    /// Maintained mirror of <see cref="FaceEnrollmentStatus"/> being
+    /// Approved. Set to true in the same CAS that sets Status=Approved
+    /// and cleared on reset. Exposed in the login response and consumed
+    /// by the mobile app's face badge and Reset Face button. Do not
+    /// write to this field except alongside the enum. See D-S20.
+    /// </summary>
+    public bool FaceEnrolled { get; set; } = false;
     public FaceEnrollmentStatus FaceEnrollmentStatus { get; set; } = FaceEnrollmentStatus.NotEnrolled;
     public DateTime? FaceEnrolledAt { get; set; }
     public int? FaceApprovedByUserId { get; set; }
