@@ -235,6 +235,22 @@ Session that (re)implemented and verified certificate templates, gatepass layout
   anti-spoof Path A, D-S13 rate limiter, D-S14 lockout, D-S15 Jest). Rather
   than reuse an ID, which would make the log ambiguous, this is **D-S16**.
 
+### D-S16a — Correction to D-S16: the mandatory documents are CNIC + Resume
+
+- **Correction (2026-10-06):** D-S16 as originally written said "CNIC and
+  University ID must both be approved". That was wrong, and it came from the
+  sweep doc rather than from the code. `DocumentGateExtensions.OfficialDocsApprovedAsync`
+  gates on **CNIC + Resume**; the API message it backs reads "CNIC and
+  CV/Resume" (`AdminController.cs:1514`). `UniversityId` exists as an
+  `UploadDocumentType` but is optional, as is `Noc`.
+- The face half of D-S16 stands: the gate is keyed on
+  `FaceEnrollmentStatus == Approved`.
+- **Field-name correction, same date.** An earlier draft of this log and of
+  AGENTS.md 4.6 named the batch counter `skippedFaceNotEnrolled`. No such
+  field exists. The real name is `skippedFaceNotApproved`, distinct from
+  `skippedDocsNotApproved` (`AdminController.cs:1625`,
+  `MentorController.cs:1010`).
+
 ### D-S18 — Three High-severity transitive advisories are open (correction)
 
 - **What:** `dotnet list package --vulnerable --include-transitive` reports

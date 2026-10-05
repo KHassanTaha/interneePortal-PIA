@@ -250,7 +250,7 @@ section:
 
 ### 4.6 The document-and-face gate
 
-CNIC and University ID must both be **approved** (and not withdrawn)
+CNIC and Resume must both be **approved** (and not withdrawn)
 **AND** the intern must have an enrolled face before ANY official
 document issuance (gate pass / ID card / certificate). Enforced on
 admin + mentor approve endpoints (single and batch) and face
@@ -258,8 +258,12 @@ enrollment via `DocumentGateExtensions.OfficialDocsApprovedAsync`.
 
 Batch approve reports skips with a reason that distinguishes the two
 failure classes:
-- `skippedDocsNotApproved` — CNIC or University ID missing/withdrawn.
-- `skippedFaceNotEnrolled` — documents OK, face not enrolled.
+- `skippedDocsNotApproved` — CNIC or Resume missing/withdrawn.
+- `skippedFaceNotApproved` — face enrollment not approved. (This is the
+  field's real name in the batch-approve responses at
+  `AdminController.cs:1625` and `MentorController.cs:1010`. An earlier
+  draft of this section said `skippedFaceNotEnrolled`; no such field
+  exists in the code.)
 
 ### 4.7 Attendance scoring contract (PLAN.md §1, locked)
 
