@@ -47,7 +47,7 @@ export default function CertificateScreen({navigation}) {
   return (
     <ScreenBackground style={styles.container}>
       <AppHeader
-        right={<TouchableOpacity style={styles.menuBtn} onPress={() => setSidebarVisible(true)}><Icon name="menu" size={22} color="#fff" /></TouchableOpacity>}
+        right={<TouchableOpacity accessibilityRole="button" accessibilityLabel="Open navigation menu" style={styles.menuBtn} onPress={() => setSidebarVisible(true)}><Icon name="menu" size={22} color="#fff" /></TouchableOpacity>}
       />
       <RightSidebar visible={sidebarVisible} onClose={() => setSidebarVisible(false)} navigation={navigation} />
 

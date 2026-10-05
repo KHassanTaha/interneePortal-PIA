@@ -91,8 +91,7 @@ export default function AdminDashboard({navigation}) {
         hideTitle
         title="Dashboard"
         right={(
-          <TouchableOpacity id="admin-menu-btn" onPress={() => setSidebarVisible(true)} style={styles.menuBtn}>
-            <Icon name="menu" size={22} color="#fff" />
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Open navigation menu" id="admin-menu-btn" onPress={() => setSidebarVisible(true)} style={styles.menuBtn}><Icon name="menu" size={22} color="#fff" />
           </TouchableOpacity>
         )}
       />
