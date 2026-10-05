@@ -164,7 +164,10 @@ git clone https://github.com/minivision-ai/Silent-Face-Anti-Spoofing
 Set-Location Silent-Face-Anti-Spoofing
 pip install torch onnx
 # then run the conversion snippet in docs/LAUNCH_GUIDE_LINUX.md 5.0 (Path A)
-Copy-Item antispoof.onnx ..\..\backend\InternSystem.API\Models\AI\
+Copy-Item antispoof.onnx ..      # the clone was made inside Models\AI, so .. is Models\AI
+Get-Item ..\antispoof.onnx       # verify it landed in Models\AI and is non-zero
+Set-Location ..                  # back to Models\AI; delete the clone when done
+Remove-Item -Recurse -Force Silent-Face-Anti-Spoofing
 ```
 
 No code change needed on Path A.
