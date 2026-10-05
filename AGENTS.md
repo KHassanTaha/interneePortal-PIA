@@ -248,13 +248,18 @@ section:
   `TokenVersion`.
 - Admin cannot read passwords. Reset-only. BCrypt one-way hashes.
 
-### 4.6 The document gate
+### 4.6 The document-and-face gate
 
-CNIC and University ID must both be **approved** (and not withdrawn) before
-ANY official document issuance (gate pass / ID card / certificate). Enforced
-on admin + mentor approve endpoints (single and batch) and face enrollment via
-`DocumentGateExtensions.OfficialDocsApprovedAsync`. Batch approve reports
-skips as `skippedDocsNotApproved`.
+CNIC and University ID must both be **approved** (and not withdrawn)
+**AND** the intern must have an enrolled face before ANY official
+document issuance (gate pass / ID card / certificate). Enforced on
+admin + mentor approve endpoints (single and batch) and face
+enrollment via `DocumentGateExtensions.OfficialDocsApprovedAsync`.
+
+Batch approve reports skips with a reason that distinguishes the two
+failure classes:
+- `skippedDocsNotApproved` — CNIC or University ID missing/withdrawn.
+- `skippedFaceNotEnrolled` — documents OK, face not enrolled.
 
 ### 4.7 Attendance scoring contract (PLAN.md §1, locked)
 
@@ -592,6 +597,28 @@ When the owner announces a demo:
 - **Assert where the side effect landed, not just that it happened.** Re-read
   the file from disk. Open the PNG. Read the log file. Assert on the path the
   code used, not the path the test passed in.
+- **A negative result is only evidence for the pattern you searched.**
+  Before reporting "no X found", "not present", or "does not
+  reproduce", state three things:
+  1. The exact search pattern you used.
+  2. The scope you applied it to (which directory, which file
+     extension, which log stream).
+  3. What *would* have matched if the thing existed — a concrete
+     example string, filename, or log line.
+
+  If you cannot produce (3), you have not searched — you have
+  looked. "Grep returned nothing" and "this does not exist" are
+  different claims; only the first is a fact.
+
+  Concrete failure modes this rule prevents, all observed in this
+  project:
+  - A scan for `*.test.js` reported "zero test files" while
+    `__tests__/App.test.tsx` sat at the repo root.
+  - A grep for `"text outside Text"` and `"missing key"` — strings
+    React Native does not emit — reported "C1/C2 do not reproduce".
+  - `dotnet list package --vulnerable` without `--include-transitive`
+    reported "zero vulnerable packages across all three projects"
+    while three High-severity transitives were present.
 - **A resizable surface needs a test that actually resizes it.** Change the
   size, let layout settle, assert the resize took effect, then assert
   position — not just visibility flags.

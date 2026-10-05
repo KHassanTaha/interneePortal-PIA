@@ -181,10 +181,11 @@ Session that (re)implemented and verified certificate templates, gatepass layout
 
 ### D-S11 Dependency remediation: axios, ImageSharp, and TypeScript tooling
 - Decision: Three changes in one commit, all driven by `AGENTS.md` §11.2 ("do not commit on a high or critical advisory") and §3.1/§11.2 ("no `tsconfig.json`, `typescript`, `ts-jest`, `@types/*`").
-  1. **`axios` 1.19.0 → 1.20.0.** `npm audit` reported **12 high-severity advisories** against `axios` in range `1.0.0–1.19.0` (GHSA-vh66-26gq-q6x8, GHSA-9fr6-4gfg-395g, GHSA-c29m-xwm3-cm6r, GHSA-mghh-pgcx-3jjj, GHSA-x97p-jq4f-jp4f, GHSA-3pq3-5fj3-cg6v, GHSA-542g-h47m-68v8, GHSA-j8rh-479h-cp32, GHSA-4hqw-qxg8-jxx2, GHSA-m8m8-qj5v-23w3, GHSA-44g4-m2mj-wpvx, GHSA-r4gj-5m52-g5wh). axios is the HTTP layer for the whole app, so this was the only flagged **direct production dependency**. Many of the advisories are Node-adapter-specific and not reachable from React Native's XHR adapter, but the prototype-pollution and header-injection gadgets are not obviously adapter-bound, so the upgrade is required rather than argued away. `^1.19.0` already permitted 1.20.0, so no dependency-graph change — a lockfile bump only.
+  1. **`axios` 1.19.0 → 1.20.0.** `npm audit` reported **12 high-severity advisories** against `axios` in range `1.0.0–1.19.0` (GHSA-vh66-26gq-q6x8, GHSA-9fr6-4gfg-395g, GHSA-c29m-xwm3-cm6r, GHSA-mghh-pgcx-3jjj, GHSA-x97p-jq2g-jp4f, GHSA-3pq3-5fj3-cg6v, GHSA-542g-h47m-68v8, GHSA-j8rh-479h-cp32, GHSA-4hqw-qxg8-jxx2, GHSA-m8m8-qj5v-23w3, GHSA-44g4-m2mj-wpvx, GHSA-r4gj-5m52-g5wh). axios is the HTTP layer for the whole app, so this was the only flagged **direct production dependency**. Many of the advisories are Node-adapter-specific and not reachable from React Native's XHR adapter, but the prototype-pollution and header-injection gadgets are not obviously adapter-bound, so the upgrade is required rather than argued away. `^1.19.0` already permitted 1.20.0, so there is no dependency-graph change: the `package.json` range is now pinned to `^1.20.0` and the lockfile resolves to 1.20.0.
   2. **`SixLabors.ImageSharp` 3.1.7 → 3.1.12** (patch, same 3.1.x line). Cleared GHSA-rxmq-m78w-7wmc and removed both `NU1902` build warnings. `4.1.2` is the latest major but 3.1.12 clears the advisory without a major-version migration.
   3. **Removed all TypeScript tooling**: `typescript`, `@types/jest`, `@types/react`, `@types/react-test-renderer`, `@react-native/typescript-config`, and the root `tsconfig.json`. `InternApp/src/` already contains **zero** `.ts`/`.tsx` files, so this was dead configuration. Nothing in `jest.config.js` (preset is `@react-native/jest-preset` only), `babel.config.js`, or `metro.config.js` referenced `tsconfig.json`.
-- Impact: `npm audit` went from 42 to 39 advisories; **`dotnet list package --vulnerable` now reports zero vulnerable packages across all three backend projects**; backend build warnings dropped from 9 to 7.
+- Impact: `npm audit --omit=dev` went from 42 to 39 advisories (8 moderate, 31 high); backend build warnings dropped from 9 to 7.
+- **Correction (2026-10-06, D-S18):** the original text here claimed `dotnet list package --vulnerable` reports **zero** vulnerable packages. That was measured **without `--include-transitive`**, i.e. direct packages only. With `--include-transitive` there are **three High-severity transitives** in `InternSystem.API` and `InternSystem.Infrastructure`: `Microsoft.Extensions.Caching.Memory` 8.0.0 (GHSA-qj66-m88j-hmgj), `System.Text.Json` 8.0.4 (GHSA-8g4q-xg66-9fp4), `System.Formats.Asn1` 5.0.0 (GHSA-447r-wph3-92pm), plus Moderate advisories on `Azure.Identity` 1.10.3 and `Microsoft.Identity.Client` 4.56.0. See D-S18. The `axios` half of this entry is independently verified and correct: auditing `axios@1.19.0` in isolation yields severity **high**, range `1.0.0 - 1.19.0`, `fixAvailable: true`, and exactly the 12 GHSAs listed above.
 - Trade-off: the remaining 39 advisories are **not fixed**, deliberately. Every one of them is a transitive dependency of the Metro / `@react-native-community/cli` toolchain (`body-parser`, `qs`, `joi`, `js-yaml`, `glob`/`brace-expansion`, `image-size`, `fast-xml-parser`, `test-exclude`). None is a direct production dependency, and none is linked into the Android bundle. `npm audit fix --force` would move React Native off 0.86.2, which `AGENTS.md` §3.1 forbids as a side effect of an unrelated task. Accepted as known tooling risk; revisit on the next RN major upgrade.
 - Status: implemented and verified. `dotnet build -c Release` succeeded (0 errors, 7 warnings); `dotnet list package --vulnerable` clean; Metro restarted on the new `node_modules` and an admin login completed on the emulator with **zero console errors** (`logs/screenshots/2026-10-06-admin-dashboard-axios120.png`).
 
@@ -214,3 +215,84 @@ Session that (re)implemented and verified certificate templates, gatepass layout
 - Impact: `npx jest` now reports **1 suite passed, 1 test passed, exit 0**. The suite is a render smoke test and asserts almost nothing; the coverage target in AGENTS.md §6.4 is untouched and remains W2.
 - Known non-fatal warning: `Jest did not exit one second after the test run has completed`. `App.js` starts `initSyncEngine(store)` and `startConnectivityMonitoring()` inside `useEffect`, which leaves timers running past teardown. Exit code is 0. Not fixed here — it needs an injectable clock or an unmount in the test, which is W2 work.
 - Status: implemented and verified.
+
+### D-S16 — Face-enrollment gate is mandatory for official document issuance
+
+- **Decision:** Official document issuance (gate pass, ID card, certificate)
+  requires BOTH the document gate (CNIC + University ID approved, not
+  withdrawn) AND an enrolled face. This extends the document gate; it does
+  not replace it.
+- **Rationale:** The two gates protect different things. Documents prove
+  identity was verified at intake. Face enrollment proves the person can
+  later mark attendance, which is the point of issuing the document in the
+  first place. Sweep item #20 requested this.
+- **Implementation:** Extend `DocumentGateExtensions.OfficialDocsApprovedAsync`
+  to also check `Intern.FaceEnrolled`. Add `skippedFaceNotEnrolled` to the
+  batch approve response so the two failure classes are distinguishable.
+- **Status:** to implement (W4.7).
+- **ID note:** the owner issued this as "D-S11". D-S11 through D-S15 were
+  already assigned and committed (D-S11 dependency remediation, D-S12
+  anti-spoof Path A, D-S13 rate limiter, D-S14 lockout, D-S15 Jest). Rather
+  than reuse an ID, which would make the log ambiguous, this is **D-S16**.
+
+### D-S18 — Three High-severity transitive advisories are open (correction)
+
+- **What:** `dotnet list package --vulnerable --include-transitive` reports
+  High-severity advisories on three transitive packages in both
+  `InternSystem.API` and `InternSystem.Infrastructure`:
+
+  | Package | Resolved | Severity | Advisory |
+  |---|---|---|---|
+  | `Microsoft.Extensions.Caching.Memory` | 8.0.0 | High | GHSA-qj66-m88j-hmgj |
+  | `System.Text.Json` | 8.0.4 | High | GHSA-8g4q-xg66-9fp4 |
+  | `System.Formats.Asn1` | 5.0.0 | High | GHSA-447r-wph3-92pm |
+  | `Azure.Identity` | 1.10.3 | Moderate (×2) | GHSA-wvxc-855f-jvrv, GHSA-m5vv-6r4h-3vj9 |
+  | `Microsoft.Identity.Client` | 4.56.0 | Low + Moderate | GHSA-x674-v45j-fwxw, GHSA-m5vv-6r4h-3vj9 |
+
+- **Why this matters:** `AGENTS.md` §11.2 says do not commit on a
+  known-vulnerable package. This is a live violation.
+- **Origin of the error:** D-S11 originally stated "zero vulnerable packages
+  across all three backend projects". That command was run **without**
+  `--include-transitive`, so it only saw direct package references. The claim
+  was stated without its scope, which made a scoped negative result read as a
+  general one. `AGENTS.md` §10.6 now names this exact failure mode.
+- **Status:** open. Candidate fix is explicit `PackageReference` bumps to
+  patched versions; not yet attempted. Tracked as W4.8.
+
+### D-S17 — Toast keeps the Modal wrapper; sweep #14 rejected
+
+- **Decision:** `AppToast` continues to render inside its own transparent
+  `<Modal>`. Sweep item #14 ("non-interactive absolute overlay, no Modal") is
+  **rejected**.
+- **Rationale:** The alternative — a plain absolute-positioned overlay — makes
+  toasts invisible whenever any screen modal is open (bottom sheets, confirm
+  dialogs, form overlays). That is a worse user-facing defect than a
+  4-second tap window. The Aug-19 fix exists because the invisible-under-modal
+  bug was observed and painful.
+- **Experiment run 2026-10-06.** `pointerEvents="none"` was applied to both
+  the `<Modal>` and its root view, then verified on `emulator-5554` against
+  the New Department sheet (a `SwipeableModal`), which fires
+  `Department name is required.` on an empty submit:
+  - **(a) toast visible above the sheet — PASS.** `uiautomator` sees only the
+    toast, because it reports the top Modal window and not the sheet beneath.
+  - **(b) tap underneath while the toast shows — FAIL, partially.** Tapping
+    the Name field at y≈1214 (far from the toast) **did** land — the keyboard
+    opened, confirming focus. Tapping Cancel at y≈2167, which sits directly
+    under the toast, **did not** land; the sheet stayed open. A React Native
+    `Modal` is its own native window: `pointerEvents="none"` on its content
+    does not disable that window's touch interception over the region the
+    toast occupies. Since the toast is anchored to the bottom (`bottom: 24`)
+    — exactly where action buttons live — the remaining unintercepted strip is
+    the one that matters least.
+  - **(c) auto-dismiss at 4 s — PASS.** `setTimeout(dismiss, 4000)`; the sheet
+    reappeared in the accessibility tree ~4 s after the toast.
+  - **(d) `adb logcat | grep ReactNativeJS | grep toast` — PASS.**
+    `'[toast]', 'error', 'Department name is required.'`
+  The change was therefore **reverted** to `pointerEvents="box-none"`, so the
+  toast close button remains tappable. Toast behaviour is unchanged from
+  2026-08-19.
+- **Mitigation accepted:** A 3-second duration (down from 4 s) is a candidate
+  follow-up to shorten the tap window. Not scheduled.
+- **Status:** implemented (unchanged behaviour, decision recorded).
+- **ID note:** the owner issued this as "D-S12"; D-S12 was already assigned to
+  anti-spoof Path A, so this is **D-S17**.
