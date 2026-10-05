@@ -211,7 +211,10 @@ torch.onnx.export(model, torch.randn(1, 3, 80, 80), "antispoof.onnx",
                   opset_version=11, dynamic_axes={"input": {0: "batch"}})
 print("wrote antispoof.onnx (2-class, BGR, raw 0-255)")
 PY
-cp antispoof.onnx ../../backend/InternSystem.API/Models/AI/
+cp antispoof.onnx ..      # the clone was made inside Models/AI, so .. is Models/AI
+ls -la ../antispoof.onnx   # verify it landed in Models/AI and is non-zero
+cd ..                      # back to Models/AI; delete the clone when done
+rm -rf Silent-Face-Anti-Spoofing
 ```
 
 No code change needed on Path A.
