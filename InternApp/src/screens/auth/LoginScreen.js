@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useMemo, useState} from 'react';
 import {
   View,
   Text,
@@ -10,131 +10,175 @@ import {
   StatusBar,
   KeyboardAvoidingView,
   Platform,
-  Image,
 } from 'react-native';
 import {useDispatch} from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import LinearGradient from 'react-native-linear-gradient';
 import {setCredentials} from '../../store/slices/authSlice';
-import client from '../../api/client';
-import theme from '../../theme';
+import client, {setTokens, setAppUser} from '../../api/client';
+import {showToast} from '../../components/AppToast';
+import {isNetworkError} from '../../api/write';
+import {gradients, useAppTheme} from '../../theme';
+import ScreenBackground from '../../components/ScreenBackground';
+import Icon from '../../components/Icon';
 
 export default function LoginScreen() {
   const dispatch = useDispatch();
+  const {colors, isDark} = useAppTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  const getDeviceId = async () => {
+    const existing = await AsyncStorage.getItem('deviceId');
+    if (existing) return existing;
+    const id = `dev_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`;
+    await AsyncStorage.setItem('deviceId', id);
+    return id;
+  };
+
+  const getDeviceLabel = () => {
+    const manufacturer = Platform.constants?.Manufacturer;
+    const model = Platform.constants?.Model;
+    const label = [manufacturer, model].filter(Boolean).join(' ').trim();
+    return label || 'Unknown device';
+  };
+
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please enter username and password');
+      showToast('Enter your username and password.', 'error');
       return;
     }
     setLoading(true);
     try {
-      const res = await client.post('/auth/login', {username, password});
-      const {accessToken, refreshToken, role, userId, profile} = res.data;
-      if (accessToken) await AsyncStorage.setItem('accessToken', accessToken);
-      if (refreshToken) await AsyncStorage.setItem('refreshToken', refreshToken);
+      const deviceId = await getDeviceId();
+      const res = await client.post('/auth/login', {username, password, deviceId, deviceLabel: getDeviceLabel()});
+      const {accessToken, refreshToken, role, userId, profile, device} = res.data;
       await AsyncStorage.setItem('user', JSON.stringify({userId, username, role}));
+      setTokens(accessToken, refreshToken);
+      setAppUser({userId, username, role});
       dispatch(setCredentials({
         user: {userId, username},
         role,
         profile,
+        device,
       }));
+
+      if (profile?.mustChangePassword) {
+        Alert.alert(
+          'Temporary Password',
+          'This is a temporary password. Change it now from your Profile (Profile → Change Password).',
+          [{text: 'OK'}],
+        );
+      }
     } catch (err) {
       const serverMsg = err.response?.data?.message;
-      const networkMsg = err.message;
-      const fullMsg = serverMsg || networkMsg || 'Network/Server Error';
-      Alert.alert('Login Failed', `${fullMsg}\n\nURL: ${require('../../config/constants').API_BASE_URL}`);
+      showToast(
+        serverMsg ||
+          (isNetworkError(err)
+            ? "You're offline. Connect to the internet and try again."
+            : "Can't reach the server. Check your connection and try again."),
+        'error',
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.colors.background} />
-
-      {/* PIA Logo Header */}
-      <View style={styles.headerContainer}>
-        <View style={styles.logoBox}>
-          <Text style={styles.logoIcon}>✈</Text>
+    <ScreenBackground>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        {/* PIA Logo Header */}
+        <View style={styles.headerContainer}>
+          <LinearGradient colors={gradients.primary} style={styles.logoBox}>
+            <Icon name="plane" size={36} color="#fff" />
+          </LinearGradient>
+          <Text style={styles.airlineName}>PAKISTAN INTERNATIONAL AIRLINES</Text>
+          <Text style={styles.tagline}>Great People to Fly With</Text>
+          <LinearGradient colors={gradients.accent} style={styles.divider} />
+          <Text style={styles.appTitle}>Intern Management Portal</Text>
         </View>
-        <Text style={styles.airlineName}>PAKISTAN INTERNATIONAL AIRLINES</Text>
-        <Text style={styles.tagline}>Great People to Fly With</Text>
-        <View style={styles.divider} />
-        <Text style={styles.appTitle}>Intern Management Portal</Text>
-      </View>
 
-      {/* Login Form */}
-      <View style={styles.formContainer}>
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Username</Text>
-          <View style={styles.inputWrapper}>
-            <Text style={styles.inputIcon}>👤</Text>
-            <TextInput
-              id="login-username"
-              style={styles.input}
-              placeholder="Enter your username"
-              placeholderTextColor={theme.colors.textMuted}
-              value={username}
-              onChangeText={setUsername}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
+        {/* Login Form */}
+        <View style={styles.formContainer}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Username</Text>
+            <View style={styles.inputWrapper}>
+              <Icon name="user" size={16} color={colors.textMuted} />
+              <TextInput
+                id="login-username"
+                style={styles.input}
+                placeholder="Enter your username"
+                placeholderTextColor={colors.textMuted}
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
           </View>
-        </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Password</Text>
-          <View style={styles.inputWrapper}>
-            <Text style={styles.inputIcon}>🔒</Text>
-            <TextInput
-              id="login-password"
-              style={styles.input}
-              placeholder="Enter your password"
-              placeholderTextColor={theme.colors.textMuted}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-            />
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Password</Text>
+            <View style={styles.inputWrapper}>
+              <Icon name="lock" size={16} color={colors.textMuted} />
+              <TextInput
+                id="login-password"
+                style={styles.input}
+                placeholder="Enter your password"
+                placeholderTextColor={colors.textMuted}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeBtn}>
+                <Icon name={showPassword ? 'eye' : 'eyeOff'} size={18} color={showPassword ? colors.primary : colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <LinearGradient
+            colors={gradients.primary}
+            start={{x: 0, y: 0}}
+            end={{x: 1, y: 0}}
+            style={[styles.loginBtn, loading && styles.loginBtnDisabled]}>
             <TouchableOpacity
-              onPress={() => setShowPassword(!showPassword)}
-              style={styles.eyeBtn}>
-              <Text style={styles.eyeIcon}>{showPassword ? '🙈' : '👁️'}</Text>
+              id="login-button"
+              onPress={handleLogin}
+              disabled={loading}
+              style={styles.loginBtnInner}>
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.loginBtnText}>Sign In</Text>
+              )}
             </TouchableOpacity>
+          </LinearGradient>
+
+          <View style={styles.roleHint}>
+            <View style={styles.roleHintRow}>
+              <Icon name="key" size={13} color={colors.textMuted} />
+              <Text style={styles.roleHintText}>Contact your mentor or admin for credentials</Text>
+            </View>
           </View>
         </View>
-
-        <TouchableOpacity
-          id="login-button"
-          style={[styles.loginBtn, loading && styles.loginBtnDisabled]}
-          onPress={handleLogin}
-          disabled={loading}>
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.loginBtnText}>Sign In</Text>
-          )}
-        </TouchableOpacity>
-
-        <View style={styles.roleHint}>
-          <Text style={styles.roleHintText}>
-            🔑 Contact your mentor or admin for credentials
-          </Text>
-        </View>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </ScreenBackground>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = colors => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
     justifyContent: 'center',
     paddingHorizontal: 24,
   },
@@ -146,25 +190,23 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: theme.colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
-    shadowColor: theme.colors.primaryLight,
+    shadowColor: colors.primaryLight,
     shadowOpacity: 0.4,
     shadowRadius: 20,
     elevation: 10,
   },
-  logoIcon: {fontSize: 32},
   airlineName: {
-    color: theme.colors.text,
+    color: colors.text,
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 1.5,
     textAlign: 'center',
   },
   tagline: {
-    color: theme.colors.accent,
+    color: colors.textAccentAlt,
     fontSize: 11,
     marginTop: 2,
     letterSpacing: 1,
@@ -172,27 +214,26 @@ const styles = StyleSheet.create({
   divider: {
     width: 60,
     height: 2,
-    backgroundColor: theme.colors.primary,
     marginVertical: 12,
     borderRadius: 2,
   },
   appTitle: {
-    color: theme.colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 15,
     letterSpacing: 0.5,
   },
   formContainer: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 24,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: colors.border,
   },
   inputGroup: {
     marginBottom: 16,
   },
   inputLabel: {
-    color: theme.colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 13,
     fontWeight: '600',
     marginBottom: 8,
@@ -201,31 +242,31 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.card,
+    backgroundColor: colors.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: colors.border,
     paddingHorizontal: 12,
   },
-  inputIcon: {fontSize: 16, marginRight: 8},
   input: {
     flex: 1,
-    color: theme.colors.text,
+    color: colors.text,
     fontSize: 15,
     paddingVertical: 14,
+    marginLeft: 8,
   },
   eyeBtn: {padding: 4},
-  eyeIcon: {fontSize: 16},
   loginBtn: {
-    backgroundColor: theme.colors.primary,
     borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
     marginTop: 8,
-    shadowColor: theme.colors.primary,
+    shadowColor: colors.primary,
     shadowOpacity: 0.4,
     shadowRadius: 12,
     elevation: 6,
+  },
+  loginBtnInner: {
+    paddingVertical: 16,
+    alignItems: 'center',
   },
   loginBtnDisabled: {opacity: 0.7},
   loginBtnText: {
@@ -238,8 +279,13 @@ const styles = StyleSheet.create({
     marginTop: 16,
     alignItems: 'center',
   },
+  roleHintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   roleHintText: {
-    color: theme.colors.textMuted,
+    color: colors.textMuted,
     fontSize: 12,
   },
 });

@@ -2,7 +2,7 @@ namespace InternSystem.Core.Entities;
 
 public enum CertificateStatus
 {
-    Applied,       // Intern submitted request
+    Pending,       // Intern submitted request
     UnderReview,   // Mentor reviewing
     Approved,      // Mentor approved, PDF generated
     Rejected
@@ -20,8 +20,15 @@ public class Certificate
     public string? LanguagesUsed { get; set; }
     public string? AdditionalNotes { get; set; }
 
+    // Mentee-selected highlight task (must be a completed, mentor-assigned task)
+    public int? HighlightTaskId { get; set; }
+    public InternTask? HighlightTask { get; set; }
+
+    // Internship report upload (required), stored on disk when report document approved
+    public string? ReportPath { get; set; }
+
     // Mentor / Admin
-    public CertificateStatus Status { get; set; } = CertificateStatus.Applied;
+    public CertificateStatus Status { get; set; } = CertificateStatus.Pending;
     public int? ApprovedByMentorId { get; set; }
     public Mentor? ApprovedByMentor { get; set; }
     public DateTime? ApprovedAt { get; set; }
@@ -40,5 +47,5 @@ public class Certificate
     public int? DepartmentHeadId { get; set; }
     public DepartmentHead? DepartmentHead { get; set; }
 
-    public DateTime AppliedAt { get; set; } = DateTime.UtcNow;
+    public DateTime AppliedAt { get; set; } = DateTime.Now;
 }

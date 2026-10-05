@@ -27,3 +27,23 @@ Thumbs.db
 
 # Runtime uploads (PDFs, documents, faces)
 uploads/
+
+# Secrets / signing
+*.jks
+*.keystore
+keystore.properties
+*.p12
+*.pfx
+.env
+appsettings.Production.json
+docs/DEVELOPMENT_CREDENTIALS.md
+
+# Stray dumps from malformed shell redirects (e.g. `cmd >--000.ppm`)
+--*.ppm
+
+# Browser-automation tool artifacts
+.playwright-mcp/
+
+# Face-recognition ONNX weights (250MB+, exceed GitHub's 100MB limit).
+# Fetched during setup — see docs/LAUNCH_GUIDE_LINUX.md §Face models.
+backend/InternSystem.API/Models/AI/*.onnx

@@ -1,13 +1,16 @@
-import React, {useState, useEffect} from 'react';
-import {View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, RefreshControl, Modal, TextInput} from 'react-native';
-import {useDispatch, useSelector} from 'react-redux';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, {useState, useEffect, useMemo} from 'react';
+import {View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl} from 'react-native';
 import client from '../../api/client';
-import theme from '../../theme';
+import {useAppTheme} from '../../theme';
+import ScreenBackground from '../../components/ScreenBackground';
+import AppHeader from '../../components/AppHeader';
+import Icon from '../../components/Icon';
+import Spinner from '../../components/Spinner';
 import RightSidebar from '../../components/RightSidebar';
 
 export default function MentorDashboard({navigation}) {
-  const dispatch = useDispatch();
+  const {colors} = useAppTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -18,104 +21,104 @@ export default function MentorDashboard({navigation}) {
     catch {} finally { setLoading(false); setRefreshing(false); }
   };
 
-  useEffect(() => { fetch(); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try { const res = await client.get('/mentor/dashboard'); if (!cancelled) setDashboard(res.data); }
+      catch {} finally { if (!cancelled) { setLoading(false); setRefreshing(false); } }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, []);
 
-  const handleLogout = async () => {
-    const refreshToken = await AsyncStorage.getItem('refreshToken');
-    try { await client.post('/auth/logout', {refreshToken}); } catch {}
-    await AsyncStorage.removeItem('accessToken');
-    await AsyncStorage.removeItem('refreshToken');
-    await AsyncStorage.removeItem('user');
-    dispatch(logout());
-  };
-
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
+  if (loading) return <Spinner style={styles.center} />;
 
   const d = dashboard;
-  const pendingTotal = (d?.pendingGatePasses || 0) + (d?.pendingCertificates || 0) + (d?.pendingIdCards || 0);
+
+  const stats = [
+    {label:'Active Interns', value: d?.activeInterns ?? 0, sub: d?.totalInterns != null ? `of ${d.totalInterns} total` : null, icon:'check'},
+    {label:'Present Today', value: d?.presentToday ?? 0, sub: d?.onLeaveToday ? `${d.onLeaveToday} on leave` : 'no one on leave', icon:'mapPin'},
+    {label:'Overdue Tasks', value: d?.overdueTasks ?? 0, sub:'past due & uncompleted', icon:'clipboard'},
+  ];
+
+  const actions = [
+    {icon:'gradCap', label:'My Interns', onPress:() => navigation.navigate('MentorInterns')},
+    {icon:'mapPin', label:'View Attendance', onPress:() => navigation.navigate('AttendanceView')},
+    {icon:'clipboard', label:'Assign Tasks', onPress:() => navigation.navigate('Tasks')},
+    {icon:'user', label:'Face Approvals', onPress:() => navigation.navigate('AttendanceView')},
+{icon:'idCard', label:'Issue Documents', onPress:() => navigation.navigate('IssueDocuments')},
+];
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{paddingBottom: 100, flexGrow: 1}}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => {setRefreshing(true); fetch();}} tintColor={theme.colors.primary}/>}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Welcome, {d?.mentorName?.split(' ')[0]} 👋</Text>
-          <Text style={styles.dept}>{d?.department} • Mentor</Text>
-        </View>
-        <TouchableOpacity id="mentor-menu-btn" onPress={() => setSidebarVisible(true)} style={styles.menuBtn}>
-          <Text style={styles.menuBtnIcon}>☰</Text>
-        </TouchableOpacity>
-      </View>
-
+    <ScreenBackground>
+      <AppHeader
+        title="Dashboard"
+        right={(
+          <TouchableOpacity id="mentor-menu-btn" onPress={() => setSidebarVisible(true)} style={styles.menuBtn}>
+            <Icon name="menu" size={22} color="#fff" />
+          </TouchableOpacity>
+        )}
+      />
       <RightSidebar
         visible={sidebarVisible}
         onClose={() => setSidebarVisible(false)}
         navigation={navigation}
       />
-
-      {pendingTotal > 0 && (
-        <View style={styles.alertBanner}>
-          <Text style={styles.alertText}>🔔 {pendingTotal} pending approval(s) require your attention</Text>
+      <ScrollView style={styles.container} contentContainerStyle={{paddingBottom: 100, flexGrow: 1}}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => {setRefreshing(true); fetch();}} tintColor={colors.primary}/>}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.greeting}>Welcome, {d?.mentorName?.split(' ')[0]}</Text>
+            <Text style={styles.dept}>{d?.department} — Mentor</Text>
+          </View>
         </View>
-      )}
 
-      <View style={styles.statsGrid}>
-        {[
-          {label:'Total Interns', value: d?.totalInterns ?? 0, icon:'👨‍🎓', color:theme.colors.primary},
-          {label:'Active', value: d?.activeInterns ?? 0, icon:'✅', color:theme.colors.success},
-          {label:'Gate Passes', value: d?.pendingGatePasses ?? 0, icon:'🎫', color:theme.colors.warning},
-          {label:'Certificates', value: d?.pendingCertificates ?? 0, icon:'🎓', color:theme.colors.info},
-        ].map((s, i) => (
-          <View key={i} style={[styles.statCard, {borderTopColor:s.color}]}>
-            <Text style={styles.statIcon}>{s.icon}</Text>
-            <Text style={[styles.statVal, {color:s.color}]}>{s.value}</Text>
-            <Text style={styles.statLabel}>{s.label}</Text>
-          </View>
+        <View style={styles.statsGrid}>
+          {stats.map((s, i) => (
+            <View key={i} style={styles.statCard}>
+              <View style={styles.statTop}>
+                <Icon name={s.icon} size={18} color={colors.textAccent} />
+                <Text style={styles.statVal}>{s.value}</Text>
+              </View>
+              <Text style={styles.statLabel}>{s.label}</Text>
+              {s.sub ? <Text style={styles.statSub}>{s.sub}</Text> : null}
+            </View>
+          ))}
+        </View>
+
+        <Text style={styles.sectionTitle}>Actions</Text>
+        {actions.map((a, i) => (
+          <TouchableOpacity key={i} id={`mentor-action-${i}`} style={styles.actionRow} onPress={a.onPress}>
+            <Icon name={a.icon} size={22} color={colors.textAccent} />
+            <Text style={styles.actionLabel}>{a.label}</Text>
+            <View style={styles.actionRight}>
+              {a.badge > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{a.badge}</Text></View>}
+              <Icon name="chevronRight" size={16} color={colors.textMuted} />
+            </View>
+          </TouchableOpacity>
         ))}
-      </View>
-
-      <Text style={styles.sectionTitle}>Actions</Text>
-      {[
-        {icon:'➕', label:'Add New Intern', onPress:() => navigation.navigate('CreateIntern')},
-        {icon:'📍', label:'View Attendance', onPress:() => navigation.navigate('AttendanceView')},
-        {icon:'📝', label:'Assign Tasks', onPress:() => navigation.navigate('Tasks')},
-        {icon:'🎫', label:'Gate Pass Requests', badge: d?.pendingGatePasses, onPress:() => navigation.navigate('GatePassApproval')},
-        {icon:'🎓', label:'Certificate Requests', badge: d?.pendingCertificates, onPress:() => navigation.navigate('MentorCerts')},
-      ].map((a, i) => (
-        <TouchableOpacity key={i} id={`mentor-action-${i}`} style={styles.actionRow} onPress={a.onPress}>
-          <Text style={styles.actionIcon}>{a.icon}</Text>
-          <Text style={styles.actionLabel}>{a.label}</Text>
-          <View style={styles.actionRight}>
-            {a.badge > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{a.badge}</Text></View>}
-            <Text style={styles.chevron}>›</Text>
-          </View>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
+      </ScrollView>
+    </ScreenBackground>
   );
 }
 
-const styles = StyleSheet.create({
-  container:{flex:1, backgroundColor:theme.colors.background},
-  center:{flex:1, justifyContent:'center', alignItems:'center', backgroundColor:theme.colors.background},
-  header:{flexDirection:'row', justifyContent:'space-between', alignItems:'center', paddingHorizontal:20, paddingTop:48, paddingBottom:16},
-  greeting:{color:theme.colors.text, fontSize:22, fontWeight:'700'},
-  dept:{color:theme.colors.textMuted, fontSize:12, marginTop:2},
-  menuBtn:{backgroundColor:theme.colors.surface, borderRadius:10, width:42, height:42, justifyContent:'center', alignItems:'center', borderWidth:1, borderColor:theme.colors.border},
-  menuBtnIcon:{color:theme.colors.primary, fontSize:22, fontWeight:'700'},
-  alertBanner:{backgroundColor:theme.colors.warning+'22', marginHorizontal:16, borderRadius:12, padding:14, marginBottom:12, borderWidth:1, borderColor:theme.colors.warning},
-  alertText:{color:theme.colors.warning, fontWeight:'600', fontSize:14},
+const makeStyles = colors => StyleSheet.create({
+  container:{flex:1},
+  center:{flex:1, justifyContent:'center', alignItems:'center', backgroundColor:colors.background},
+  header:{marginTop:12, paddingHorizontal:20, paddingBottom:16},
+  greeting:{color:colors.text, fontSize:22, fontWeight:'700'},
+  dept:{color:colors.textMuted, fontSize:12, marginTop:2},
+  menuBtn:{width:40, height:40, borderRadius:20, backgroundColor:'rgba(255,255,255,0.18)', borderWidth:1, borderColor:'rgba(255,255,255,0.35)', alignItems:'center', justifyContent:'center'},
   statsGrid:{flexDirection:'row', flexWrap:'wrap', justifyContent:'space-between', paddingHorizontal:16, marginBottom:8},
-  statCard:{width:'48%', backgroundColor:theme.colors.surface, borderRadius:16, padding:16, borderTopWidth:3, alignItems:'center', marginBottom:12, borderWidth:1, borderColor:theme.colors.border},
-  statIcon:{fontSize:28, marginBottom:6},
-  statVal:{fontSize:28, fontWeight:'800'},
-  statLabel:{color:theme.colors.textSecondary, fontSize:11, marginTop:4, textAlign:'center'},
-  sectionTitle:{color:theme.colors.text, fontSize:16, fontWeight:'700', marginHorizontal:20, marginTop:8, marginBottom:12},
-  actionRow:{flexDirection:'row', alignItems:'center', backgroundColor:theme.colors.surface, marginHorizontal:16, marginBottom:8, borderRadius:14, padding:16, borderWidth:1, borderColor:theme.colors.border},
-  actionIcon:{fontSize:22, marginRight:14},
-  actionLabel:{flex:1, color:theme.colors.text, fontSize:15, fontWeight:'600'},
+  statCard:{width:'48%', backgroundColor:colors.surface, borderRadius:14, padding:12, borderLeftWidth:3, borderLeftColor:colors.primary, marginBottom:10, borderWidth:1, borderColor:colors.border},
+  statTop:{flexDirection:'row', alignItems:'center', gap:8},
+  statVal:{fontSize:22, fontWeight:'800', color:colors.text},
+  statLabel:{color:colors.text, fontSize:12, fontWeight:'600', marginTop:8},
+  statSub:{color:colors.textSecondary, fontSize:10, marginTop:2},
+  sectionTitle:{color:colors.text, fontSize:16, fontWeight:'700', marginHorizontal:20, marginTop:8, marginBottom:12},
+  actionRow:{flexDirection:'row', alignItems:'center', backgroundColor:colors.surface, marginHorizontal:16, marginBottom:8, borderRadius:14, padding:16, borderWidth:1, borderColor:colors.border, gap:14},
+  actionLabel:{flex:1, color:colors.text, fontSize:15, fontWeight:'600'},
   actionRight:{flexDirection:'row', alignItems:'center', gap:8},
-  badge:{backgroundColor:theme.colors.warning, borderRadius:10, minWidth:20, height:20, justifyContent:'center', alignItems:'center', paddingHorizontal:6},
+  badge:{backgroundColor:colors.warning, borderRadius:10, minWidth:20, height:20, justifyContent:'center', alignItems:'center', paddingHorizontal:6},
   badgeText:{color:'#fff', fontSize:11, fontWeight:'700'},
-  chevron:{color:theme.colors.textMuted, fontSize:24},
 });

@@ -4,7 +4,9 @@ public enum UploadDocumentType
 {
     Cnic,
     UniversityId,
-    Resume
+    Resume,
+    Noc,
+    Report
 }
 
 public class DocumentUpload
@@ -24,7 +26,7 @@ public class DocumentUpload
     public string? RejectionReason { get; set; }
     public DateTime? WithdrawnAt { get; set; }
 
-    public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UploadedAt { get; set; } = DateTime.Now;
 }
 
 public static class DocumentUploadRules
@@ -35,7 +37,7 @@ public static class DocumentUploadRules
     public static readonly long MaxTotalSizeBytes = 10 * 1024 * 1024;
 
     public static bool IsValidType(UploadDocumentType type, string ext) =>
-        type == UploadDocumentType.Resume
+        type == UploadDocumentType.Resume || type == UploadDocumentType.Noc || type == UploadDocumentType.Report
             ? PdfExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase) ||
               ImageExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase)
             : ImageExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase);

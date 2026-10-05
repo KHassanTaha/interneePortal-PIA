@@ -72,6 +72,20 @@ namespace InternSystem.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("ArrivalStatus")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CheckInPhotoPath")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CheckOutPhotoPath")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DepartureStatus")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<double>("DistanceMeters")
                         .HasColumnType("float");
 
@@ -90,6 +104,9 @@ namespace InternSystem.Infrastructure.Migrations
                     b.Property<bool>("IsInRange")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsOnLeave")
+                        .HasColumnType("bit");
+
                     b.Property<double>("Latitude")
                         .HasColumnType("float");
 
@@ -104,6 +121,9 @@ namespace InternSystem.Infrastructure.Migrations
 
                     b.Property<string>("Notes")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("OutTime")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -120,6 +140,45 @@ namespace InternSystem.Infrastructure.Migrations
                     b.HasIndex("InternId");
 
                     b.ToTable("Attendances");
+                });
+
+            modelBuilder.Entity("InternSystem.Core.Entities.AttendanceSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AllowedLeaveDays")
+                        .HasColumnType("int");
+
+                    b.Property<int>("GraceMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("SignatureRequired")
+                        .HasColumnType("bit");
+
+                    b.Property<double>("TaskThresholdPct")
+                        .HasColumnType("float");
+
+                    b.Property<double>("ThresholdPct")
+                        .HasColumnType("float");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AttendanceSettings");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            AllowedLeaveDays = 5,
+                            GraceMinutes = 15,
+                            SignatureRequired = false,
+                            TaskThresholdPct = 80.0,
+                            ThresholdPct = 80.0
+                        });
                 });
 
             modelBuilder.Entity("InternSystem.Core.Entities.AttendanceVerificationSession", b =>
@@ -145,6 +204,9 @@ namespace InternSystem.Infrastructure.Migrations
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<double?>("FaceConfidence")
+                        .HasColumnType("float");
+
                     b.Property<bool>("FaceVerified")
                         .HasColumnType("bit");
 
@@ -156,6 +218,9 @@ namespace InternSystem.Infrastructure.Migrations
 
                     b.Property<int>("InternId")
                         .HasColumnType("int");
+
+                    b.Property<string>("IssuedChallenges")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<double?>("Latitude")
                         .HasColumnType("float");
@@ -178,6 +243,9 @@ namespace InternSystem.Infrastructure.Migrations
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");
+
+                    b.Property<string>("VerificationPhotoPath")
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
@@ -216,6 +284,9 @@ namespace InternSystem.Infrastructure.Migrations
                     b.Property<string>("DepartmentHeadName")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("HighlightTaskId")
+                        .HasColumnType("int");
+
                     b.Property<int>("InternId")
                         .HasColumnType("int");
 
@@ -240,6 +311,9 @@ namespace InternSystem.Infrastructure.Migrations
                     b.Property<string>("RejectionReason")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ReportPath")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -253,6 +327,8 @@ namespace InternSystem.Infrastructure.Migrations
 
                     b.HasIndex("DepartmentHeadId");
 
+                    b.HasIndex("HighlightTaskId");
+
                     b.HasIndex("InternId");
 
                     b.ToTable("Certificates");
@@ -265,6 +341,9 @@ namespace InternSystem.Infrastructure.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Code")
                         .IsRequired()
@@ -303,7 +382,7 @@ namespace InternSystem.Infrastructure.Migrations
                             Latitude = 24.894995000000002,
                             Longitude = 67.152181999999996,
                             Name = "ERP Section",
-                            RadiusMeters = 30.0
+                            RadiusMeters = 100.0
                         },
                         new
                         {
@@ -314,7 +393,7 @@ namespace InternSystem.Infrastructure.Migrations
                             Latitude = 24.894427,
                             Longitude = 67.151781999999997,
                             Name = "Cyber Security",
-                            RadiusMeters = 30.0
+                            RadiusMeters = 100.0
                         });
                 });
 
@@ -329,9 +408,15 @@ namespace InternSystem.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("DepartmentId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Designation")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("MentorId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -342,7 +427,43 @@ namespace InternSystem.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("MentorId");
+
                     b.ToTable("DepartmentHeads");
+                });
+
+            modelBuilder.Entity("InternSystem.Core.Entities.DeviceMac", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeviceType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("InternId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MacAddress")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InternId");
+
+                    b.ToTable("DeviceMacs");
                 });
 
             modelBuilder.Entity("InternSystem.Core.Entities.DocumentUpload", b =>
@@ -394,6 +515,37 @@ namespace InternSystem.Infrastructure.Migrations
                     b.HasIndex("InternId");
 
                     b.ToTable("DocumentUploads");
+                });
+
+            modelBuilder.Entity("InternSystem.Core.Entities.FaceEnrollmentRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("EnrolledAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("InternId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PhotoPath")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PhotoThumbPath")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InternId");
+
+                    b.ToTable("FaceEnrollmentRecords");
                 });
 
             modelBuilder.Entity("InternSystem.Core.Entities.GatePass", b =>
@@ -489,6 +641,52 @@ namespace InternSystem.Infrastructure.Migrations
                     b.ToTable("IdCardRequests");
                 });
 
+            modelBuilder.Entity("InternSystem.Core.Entities.IdempotencyRecord", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ResponseBody")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("StatusCode")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Key")
+                        .IsUnique();
+
+                    b.ToTable("IdempotencyRecords");
+                });
+
             modelBuilder.Entity("InternSystem.Core.Entities.Intern", b =>
                 {
                     b.Property<int>("Id")
@@ -512,11 +710,24 @@ namespace InternSystem.Infrastructure.Migrations
                     b.Property<DateTime>("EndDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("FaceApprovedByUserId")
+                        .HasColumnType("int");
+
                     b.Property<string>("FaceEmbeddingJson")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("FaceEnrolled")
                         .HasColumnType("bit");
+
+                    b.Property<DateTime?>("FaceEnrolledAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FaceEnrollmentStatus")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FaceRejectedReason")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("FullName")
                         .IsRequired()
@@ -525,7 +736,21 @@ namespace InternSystem.Infrastructure.Migrations
                     b.Property<int?>("Gender")
                         .HasColumnType("int");
 
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("float");
+
                     b.Property<int>("MentorId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RegNo")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<int?>("ShiftId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("StartDate")
@@ -543,10 +768,78 @@ namespace InternSystem.Infrastructure.Migrations
 
                     b.HasIndex("MentorId");
 
+                    b.HasIndex("RegNo")
+                        .IsUnique()
+                        .HasFilter("[RegNo] IS NOT NULL AND [RegNo] <> ''");
+
+                    b.HasIndex("ShiftId");
+
                     b.HasIndex("UserId")
                         .IsUnique();
 
                     b.ToTable("Interns");
+                });
+
+            modelBuilder.Entity("InternSystem.Core.Entities.InternSerialTracker", b =>
+                {
+                    b.Property<string>("Prefix")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("LastSerial")
+                        .HasColumnType("int");
+
+                    b.HasKey("Prefix");
+
+                    b.ToTable("InternSerialTrackers");
+                });
+
+            modelBuilder.Entity("InternSystem.Core.Entities.InternShiftChangeRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("FromShiftId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("InternAcceptedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("InternId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RejectionReason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("RequestedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ToShiftId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FromShiftId");
+
+                    b.HasIndex("InternId");
+
+                    b.HasIndex("RequestedByUserId");
+
+                    b.HasIndex("ToShiftId");
+
+                    b.ToTable("InternShiftChangeRequests");
                 });
 
             modelBuilder.Entity("InternSystem.Core.Entities.InternTask", b =>
@@ -593,6 +886,121 @@ namespace InternSystem.Infrastructure.Migrations
                     b.ToTable("Tasks");
                 });
 
+            modelBuilder.Entity("InternSystem.Core.Entities.InternTransferRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EndorsedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("EndorsedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("FinalisedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("FinalisedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FromMentorId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("InitiatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("InitiatedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("InternAcceptedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("InternId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RejectionReason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ToMentorId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EndorsedByUserId");
+
+                    b.HasIndex("FinalisedByUserId");
+
+                    b.HasIndex("FromMentorId");
+
+                    b.HasIndex("InitiatedByUserId");
+
+                    b.HasIndex("InternId");
+
+                    b.HasIndex("ToMentorId");
+
+                    b.ToTable("InternTransferRequests");
+                });
+
+            modelBuilder.Entity("InternSystem.Core.Entities.LeaveApplication", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DecidedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("DecidedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("InternId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RejectionReason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DecidedByUserId");
+
+                    b.HasIndex("InternId");
+
+                    b.ToTable("LeaveApplications");
+                });
+
             modelBuilder.Entity("InternSystem.Core.Entities.Mentor", b =>
                 {
                     b.Property<int>("Id")
@@ -614,8 +1022,14 @@ namespace InternSystem.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Email")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("FullName")
                         .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Phone")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("UserId")
@@ -631,6 +1045,198 @@ namespace InternSystem.Infrastructure.Migrations
                     b.ToTable("Mentors");
                 });
 
+            modelBuilder.Entity("InternSystem.Core.Entities.MentorTransferRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AdminNote")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("FinalisedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("FinalisedByAdminId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FromDepartmentId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("InitiatedByAdminId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MentorId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MentorNote")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("RespondedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("RespondedByMentorId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ToDepartmentId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FinalisedByAdminId");
+
+                    b.HasIndex("FromDepartmentId");
+
+                    b.HasIndex("InitiatedByAdminId");
+
+                    b.HasIndex("MentorId");
+
+                    b.HasIndex("RespondedByMentorId");
+
+                    b.HasIndex("ToDepartmentId");
+
+                    b.ToTable("MentorTransferRequests");
+                });
+
+            modelBuilder.Entity("InternSystem.Core.Entities.Notification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("EntityId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("EntityType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "IsRead");
+
+                    b.ToTable("Notifications");
+                });
+
+            modelBuilder.Entity("InternSystem.Core.Entities.PublicHoliday", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Date");
+
+                    b.ToTable("PublicHolidays");
+                });
+
+            modelBuilder.Entity("InternSystem.Core.Entities.Shift", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DepartmentId")
+                        .HasColumnType("int");
+
+                    b.Property<TimeSpan>("EndTime")
+                        .HasColumnType("time");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsCompanyWide")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<TimeSpan>("StartTime")
+                        .HasColumnType("time");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.ToTable("Shifts");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            EndTime = new TimeSpan(0, 17, 0, 0, 0),
+                            IsActive = true,
+                            IsCompanyWide = true,
+                            Name = "Morning",
+                            StartTime = new TimeSpan(0, 9, 0, 0, 0)
+                        },
+                        new
+                        {
+                            Id = 2,
+                            EndTime = new TimeSpan(0, 21, 0, 0, 0),
+                            IsActive = true,
+                            IsCompanyWide = true,
+                            Name = "Afternoon",
+                            StartTime = new TimeSpan(0, 13, 0, 0, 0)
+                        },
+                        new
+                        {
+                            Id = 3,
+                            EndTime = new TimeSpan(0, 5, 0, 0, 0),
+                            IsActive = true,
+                            IsCompanyWide = true,
+                            Name = "Night",
+                            StartTime = new TimeSpan(0, 21, 0, 0, 0)
+                        });
+                });
+
             modelBuilder.Entity("InternSystem.Core.Entities.User", b =>
                 {
                     b.Property<int>("Id")
@@ -642,7 +1248,25 @@ namespace InternSystem.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("DeviceBoundAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeviceIdHash")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DeviceLabel")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("FailedLoginAttempts")
+                        .HasColumnType("int");
+
                     b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LockedUntil")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("MustChangePassword")
                         .HasColumnType("bit");
 
                     b.Property<string>("PasswordHash")
@@ -658,6 +1282,9 @@ namespace InternSystem.Infrastructure.Migrations
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("TokenVersion")
+                        .HasColumnType("int");
 
                     b.Property<string>("Username")
                         .IsRequired()
@@ -675,9 +1302,12 @@ namespace InternSystem.Infrastructure.Migrations
                         {
                             Id = 1,
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            FailedLoginAttempts = 0,
                             IsActive = true,
-                            PasswordHash = "$2a$11$HG4cYuT.LdOXI5Ic2PUBOukWMioX95njQJKPYkRNSQFSeIwRfJPWm",
+                            MustChangePassword = false,
+                            PasswordHash = "$2a$11$jlabe7hZwmFqIFA0UWbpveCrNWpu3/Avs936MOiEgKQWyG1H1OdUi",
                             Role = "Admin",
+                            TokenVersion = 0,
                             Username = "admin"
                         });
                 });
@@ -756,6 +1386,11 @@ namespace InternSystem.Infrastructure.Migrations
                         .HasForeignKey("DepartmentHeadId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("InternSystem.Core.Entities.InternTask", "HighlightTask")
+                        .WithMany()
+                        .HasForeignKey("HighlightTaskId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("InternSystem.Core.Entities.Intern", "Intern")
                         .WithMany("Certificates")
                         .HasForeignKey("InternId")
@@ -765,6 +1400,35 @@ namespace InternSystem.Infrastructure.Migrations
                     b.Navigation("ApprovedByMentor");
 
                     b.Navigation("DepartmentHead");
+
+                    b.Navigation("HighlightTask");
+
+                    b.Navigation("Intern");
+                });
+
+            modelBuilder.Entity("InternSystem.Core.Entities.DepartmentHead", b =>
+                {
+                    b.HasOne("InternSystem.Core.Entities.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("InternSystem.Core.Entities.Mentor", "Mentor")
+                        .WithMany()
+                        .HasForeignKey("MentorId");
+
+                    b.Navigation("Department");
+
+                    b.Navigation("Mentor");
+                });
+
+            modelBuilder.Entity("InternSystem.Core.Entities.DeviceMac", b =>
+                {
+                    b.HasOne("InternSystem.Core.Entities.Intern", "Intern")
+                        .WithMany()
+                        .HasForeignKey("InternId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Intern");
                 });
@@ -783,6 +1447,17 @@ namespace InternSystem.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("ApprovedByUser");
+
+                    b.Navigation("Intern");
+                });
+
+            modelBuilder.Entity("InternSystem.Core.Entities.FaceEnrollmentRecord", b =>
+                {
+                    b.HasOne("InternSystem.Core.Entities.Intern", "Intern")
+                        .WithMany("FaceEnrollmentRecords")
+                        .HasForeignKey("InternId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Intern");
                 });
@@ -837,6 +1512,11 @@ namespace InternSystem.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("InternSystem.Core.Entities.Shift", "Shift")
+                        .WithMany()
+                        .HasForeignKey("ShiftId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("InternSystem.Core.Entities.User", "User")
                         .WithOne("Intern")
                         .HasForeignKey("InternSystem.Core.Entities.Intern", "UserId")
@@ -847,7 +1527,44 @@ namespace InternSystem.Infrastructure.Migrations
 
                     b.Navigation("Mentor");
 
+                    b.Navigation("Shift");
+
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("InternSystem.Core.Entities.InternShiftChangeRequest", b =>
+                {
+                    b.HasOne("InternSystem.Core.Entities.Shift", "FromShift")
+                        .WithMany()
+                        .HasForeignKey("FromShiftId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("InternSystem.Core.Entities.Intern", "Intern")
+                        .WithMany()
+                        .HasForeignKey("InternId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("InternSystem.Core.Entities.User", "RequestedByUser")
+                        .WithMany()
+                        .HasForeignKey("RequestedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("InternSystem.Core.Entities.Shift", "ToShift")
+                        .WithMany()
+                        .HasForeignKey("ToShiftId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("FromShift");
+
+                    b.Navigation("Intern");
+
+                    b.Navigation("RequestedByUser");
+
+                    b.Navigation("ToShift");
                 });
 
             modelBuilder.Entity("InternSystem.Core.Entities.InternTask", b =>
@@ -865,6 +1582,73 @@ namespace InternSystem.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("AssignedByMentor");
+
+                    b.Navigation("Intern");
+                });
+
+            modelBuilder.Entity("InternSystem.Core.Entities.InternTransferRequest", b =>
+                {
+                    b.HasOne("InternSystem.Core.Entities.User", "EndorsedByUser")
+                        .WithMany()
+                        .HasForeignKey("EndorsedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("InternSystem.Core.Entities.User", "FinalisedByUser")
+                        .WithMany()
+                        .HasForeignKey("FinalisedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("InternSystem.Core.Entities.Mentor", "FromMentor")
+                        .WithMany()
+                        .HasForeignKey("FromMentorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("InternSystem.Core.Entities.User", "InitiatedByUser")
+                        .WithMany()
+                        .HasForeignKey("InitiatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("InternSystem.Core.Entities.Intern", "Intern")
+                        .WithMany()
+                        .HasForeignKey("InternId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("InternSystem.Core.Entities.Mentor", "ToMentor")
+                        .WithMany()
+                        .HasForeignKey("ToMentorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("EndorsedByUser");
+
+                    b.Navigation("FinalisedByUser");
+
+                    b.Navigation("FromMentor");
+
+                    b.Navigation("InitiatedByUser");
+
+                    b.Navigation("Intern");
+
+                    b.Navigation("ToMentor");
+                });
+
+            modelBuilder.Entity("InternSystem.Core.Entities.LeaveApplication", b =>
+                {
+                    b.HasOne("InternSystem.Core.Entities.User", "DecidedByUser")
+                        .WithMany()
+                        .HasForeignKey("DecidedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("InternSystem.Core.Entities.Intern", "Intern")
+                        .WithMany()
+                        .HasForeignKey("InternId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("DecidedByUser");
 
                     b.Navigation("Intern");
                 });
@@ -888,6 +1672,76 @@ namespace InternSystem.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("InternSystem.Core.Entities.MentorTransferRequest", b =>
+                {
+                    b.HasOne("InternSystem.Core.Entities.User", "FinalisedByAdmin")
+                        .WithMany()
+                        .HasForeignKey("FinalisedByAdminId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("InternSystem.Core.Entities.Department", "FromDepartment")
+                        .WithMany()
+                        .HasForeignKey("FromDepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("InternSystem.Core.Entities.User", "InitiatedByAdmin")
+                        .WithMany()
+                        .HasForeignKey("InitiatedByAdminId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("InternSystem.Core.Entities.Mentor", "Mentor")
+                        .WithMany()
+                        .HasForeignKey("MentorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("InternSystem.Core.Entities.User", "RespondedByMentor")
+                        .WithMany()
+                        .HasForeignKey("RespondedByMentorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("InternSystem.Core.Entities.Department", "ToDepartment")
+                        .WithMany()
+                        .HasForeignKey("ToDepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("FinalisedByAdmin");
+
+                    b.Navigation("FromDepartment");
+
+                    b.Navigation("InitiatedByAdmin");
+
+                    b.Navigation("Mentor");
+
+                    b.Navigation("RespondedByMentor");
+
+                    b.Navigation("ToDepartment");
+                });
+
+            modelBuilder.Entity("InternSystem.Core.Entities.Notification", b =>
+                {
+                    b.HasOne("InternSystem.Core.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("InternSystem.Core.Entities.Shift", b =>
+                {
+                    b.HasOne("InternSystem.Core.Entities.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Department");
+                });
+
             modelBuilder.Entity("InternSystem.Core.Entities.Department", b =>
                 {
                     b.Navigation("Interns");
@@ -902,6 +1756,8 @@ namespace InternSystem.Infrastructure.Migrations
                     b.Navigation("Attendances");
 
                     b.Navigation("Certificates");
+
+                    b.Navigation("FaceEnrollmentRecords");
 
                     b.Navigation("GatePasses");
 

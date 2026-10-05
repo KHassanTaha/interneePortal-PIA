@@ -21,9 +21,20 @@
     letter-spacing: 2px; margin: 30px 0 26px;
   }
   p { font-size: 12.5pt; line-height: 1.55; text-align: justify; margin: 0 0 14px; }
-  .sig-block { text-align: right; margin-top: 50px; font-size: 12.5pt; }
-  .sig-block img { height: 55px; margin-bottom: 4px; }
-  .sig-block .name { font-weight: bold; margin-top: 6px; }
+  .th-title { font-size: 12.5pt; font-weight: bold; margin: 18px 0 6px; }
+  .th-item { margin: 0 0 8px; }
+  .th-line {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid #999; border-radius: 6px; padding: 6px 10px;
+    font-size: 11.5pt;
+  }
+  .th-side { flex: 1; }
+  .th-arrow { color: #555; }
+  .th-date { font-size: 10pt; color: #555; margin-top: 3px; }
+  .sys-line {
+    margin-top: 54px; text-align: center; font-size: 10.5pt;
+    font-style: italic; color: #555;
+  }
 </style>
 </head>
 <body>
@@ -56,12 +67,9 @@
 
     <p>We deeply appreciate his hard work, professionalism and exceptional performance, and we are confident that he will achieve great success in his future career. We wish all the best in his professional and academic pursuits.</p>
 
-    <div class="sig-block">
-      <img src="{{HeadSignature}}" alt="signature"/>
-      <div>{{HeadDesignation}}</div>
-      <div class="name">{{HeadName}}</div>
-      <div>Pakistan International Airlines</div>
-    </div>
+    <!--TransferHistory-->
+
+    <div class="sys-line">This is a system-generated document and does not require a signature.</div>
   </div>
 </body>
 </html>

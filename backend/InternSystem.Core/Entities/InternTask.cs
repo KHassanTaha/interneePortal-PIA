@@ -20,6 +20,6 @@ public class InternTask
     public string Description { get; set; } = string.Empty;
     public DateTime? Deadline { get; set; }
     public TaskStatus Status { get; set; } = TaskStatus.Pending;
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime? CompletedAt { get; set; }
 }

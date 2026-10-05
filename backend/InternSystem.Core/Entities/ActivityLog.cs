@@ -4,16 +4,21 @@ public enum ActivityLogType
 {
     InternCreated,
     MentorCreated,
+    MentorUpdated,
+    MentorDeleted,
     AttendanceMarked,
     GatePassRequested,
     GatePassApproved,
     GatePassRejected,
+    GatePassDeleted,
     IdCardRequested,
     IdCardApproved,
     IdCardRejected,
+    IdCardDeleted,
     CertificateApplied,
     CertificateApproved,
     CertificateRejected,
+    CertificateDeleted,
     TaskAssigned,
     TaskCompleted,
     PasswordReset,
@@ -26,7 +31,36 @@ public enum ActivityLogType
     DocumentDeleted,
     DepartmentHeadCreated,
     DepartmentHeadUpdated,
-    DepartmentHeadDeleted
+    DepartmentHeadDeleted,
+    InternUpdated,
+    DepartmentCreated,
+    DepartmentUpdated,
+    DepartmentDeleted,
+    FaceEnrollmentSubmitted,
+    FaceEnrollmentApproved,
+    FaceEnrollmentRejected,
+    MentorTransferInitiated,
+    MentorTransferAccepted,
+    MentorTransferRejected,
+    MentorTransferFinalised,
+    InternTransferInitiated,
+    InternTransferAccepted,
+    InternTransferRejected,
+    InternTransferFinalised,
+    InternTransferObjection,
+    InternShiftChanged,
+    AttendanceEdited,
+    SettingsUpdated,
+    HolidayAdded,
+    HolidayUpdated,
+    HolidayDeleted,
+    ShiftCreated,
+    ShiftUpdated,
+    ShiftDeleted,
+    LeaveApplied,
+    LeaveApproved,
+    LeaveRejected,
+    DeviceBindingReset
 }
 
 public class ActivityLog
@@ -47,6 +81,6 @@ public class ActivityLog
     public int? DepartmentId { get; set; }
     public Department? Department { get; set; }
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
     public string? Metadata { get; set; } // JSON for extra data
 }

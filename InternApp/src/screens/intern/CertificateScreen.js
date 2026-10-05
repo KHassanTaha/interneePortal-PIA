@@ -1,206 +1,130 @@
-import React, {useState, useEffect} from 'react';
-import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  Alert, ActivityIndicator, TextInput, Modal, RefreshControl,
-} from 'react-native';
+import React, {useCallback, useState, useMemo} from 'react';
+import {View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl} from 'react-native';
+import {useFocusEffect} from '@react-navigation/native';
 import client from '../../api/client';
-import {API_BASE_URL} from '../../config/constants';
-import theme from '../../theme';
+import {showToast} from '../../components/AppToast';
+import {useAppTheme} from '../../theme';
+import ScreenBackground from '../../components/ScreenBackground';
+import AppHeader from '../../components/AppHeader';
+import Icon from '../../components/Icon';
+import Spinner from '../../components/Spinner';
+import RightSidebar from '../../components/RightSidebar';
 
-export default function CertificateScreen() {
-  const [cert, setCert] = useState(null);
+export default function CertificateScreen({navigation}) {
+  const {colors} = useAppTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showApplyModal, setShowApplyModal] = useState(false);
-  const [applying, setApplying] = useState(false);
-  const [form, setForm] = useState({projectName:'', projectOutcomes:'', languagesUsed:'', additionalNotes:''});
+  const [sidebarVisible, setSidebarVisible] = useState(false);
 
-  const fetchCertificate = async () => {
-    try {
-      const res = await client.get('/intern/certificate');
-      setCert(res.data);
-    } catch {} finally { setLoading(false); setRefreshing(false); }
+  const fetchData = async () => {
+    try { const res = await client.get('/intern/certificate/eligibility'); setData(res.data); }
+    catch { showToast("Couldn't load eligibility.", 'error'); }
+    finally { setLoading(false); setRefreshing(false); }
   };
 
-  useEffect(() => { fetchCertificate(); }, []);
+  useFocusEffect(useCallback(() => {
+    let cancelled = false;
+    const loadData = async () => {
+      try { const res = await client.get('/intern/certificate/eligibility'); if (!cancelled) setData(res.data); }
+      catch { if (!cancelled) showToast("Couldn't load eligibility.", 'error'); }
+      finally { if (!cancelled) { setLoading(false); setRefreshing(false); } }
+    };
+    loadData();
+    return () => { cancelled = true; };
+  }, []));
 
-  const applyCertificate = async () => {
-    if (!form.projectName || !form.projectOutcomes || !form.languagesUsed) {
-      Alert.alert('Required', 'Please fill Project Name, Outcomes, and Languages'); return;
-    }
-    setApplying(true);
-    try {
-      await client.post('/intern/certificate', form);
-      Alert.alert('Success', 'Certificate application submitted! Awaiting mentor approval.');
-      setShowApplyModal(false);
-      fetchCertificate();
-    } catch (e) {
-      Alert.alert('Error', e.response?.data?.message || 'Application failed');
-    } finally { setApplying(false); }
-  };
+  if (loading) return <Spinner style={styles.center} />;
 
-  const downloadPdf = () => {
-    if (!cert?.pdfPath) { Alert.alert('Not Ready', 'Certificate PDF not yet generated'); return; }
-    const {Linking} = require('react-native');
-    const url = `${API_BASE_URL.replace('/api', '')}/files/${cert.pdfPath}`;
-    Linking.openURL(url);
-  };
-
-  const statusConfig = {
-    Applied: {color: theme.colors.info, icon: '📝', label: 'Application Submitted'},
-    UnderReview: {color: theme.colors.warning, icon: '🔍', label: 'Under Review'},
-    Approved: {color: theme.colors.success, icon: '🎓', label: 'Certificate Ready'},
-    Rejected: {color: theme.colors.error, icon: '❌', label: 'Rejected'},
-  };
-
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
+  const eligible = data?.eligible;
+  const pct = data?.percentage ?? 0;
+  const threshold = data?.thresholdPct ?? 75;
+  const endDatePassed = !!data?.endDatePassed;
+  const taskPct = data?.taskPct ?? 0;
+  const taskThreshold = data?.taskThresholdPct ?? 0;
 
   return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => {setRefreshing(true); fetchCertificate();}} tintColor={theme.colors.primary} />}>
+    <ScreenBackground style={styles.container}>
+      <AppHeader
+        right={<TouchableOpacity style={styles.menuBtn} onPress={() => setSidebarVisible(true)}><Icon name="menu" size={22} color="#fff" /></TouchableOpacity>}
+      />
+      <RightSidebar visible={sidebarVisible} onClose={() => setSidebarVisible(false)} navigation={navigation} />
 
-      <View style={styles.header}>
-        <Text style={styles.title}>Internship Certificate</Text>
-        <Text style={styles.subtitle}>Official PIA completion certificate</Text>
-      </View>
+      <ScrollView contentContainerStyle={{paddingBottom:100, flexGrow:1}} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => {setRefreshing(true); fetchData();}} tintColor={colors.primary}/>}>
 
-      {!cert ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyIcon}>🎓</Text>
-          <Text style={styles.emptyTitle}>Apply for Certificate</Text>
-          <Text style={styles.emptyDesc}>
-            Once your internship is complete, apply for your official internship certificate from PIA
-          </Text>
-          <TouchableOpacity id="apply-certificate-btn" style={styles.applyBtn} onPress={() => setShowApplyModal(true)}>
-            <Text style={styles.applyBtnText}>Apply Now</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <View style={styles.statusCard}>
-          <Text style={styles.statusIcon}>{statusConfig[cert.status]?.icon ?? '📄'}</Text>
-          <Text style={[styles.statusLabel, {color: statusConfig[cert.status]?.color ?? theme.colors.text}]}>
-            {statusConfig[cert.status]?.label ?? cert.status}
-          </Text>
-          <Text style={styles.statusDate}>Applied: {new Date(cert.appliedAt).toLocaleDateString()}</Text>
-
-          <View style={styles.detailsBox}>
-            <Text style={styles.detailLabel}>Project</Text>
-            <Text style={styles.detailValue}>{cert.projectName}</Text>
-            <Text style={styles.detailLabel}>Technologies Used</Text>
-            <Text style={styles.detailValue}>{cert.languagesUsed}</Text>
-            <Text style={styles.detailLabel}>Outcomes</Text>
-            <Text style={styles.detailValue}>{cert.projectOutcomes}</Text>
-            {cert.status === 'Approved' && (
-              <>
-                <Text style={styles.detailLabel}>Tech Stack (as verified)</Text>
-                <Text style={styles.detailValue}>{cert.techStack}</Text>
-                <Text style={styles.detailLabel}>Intern Work</Text>
-                <Text style={styles.detailValue}>{cert.internWork}</Text>
-                {cert.departmentHeadName ? (
-                  <>
-                    <Text style={styles.detailLabel}>Department Head</Text>
-                    <Text style={styles.detailValue}>{cert.departmentHeadName}</Text>
-                  </>
-                ) : null}
-              </>
-            )}
+        {/* Eligibility Status */}
+        <View style={[styles.statusCard, {borderColor: (eligible ? colors.success : colors.warning) + '44'}]}>
+          <View style={[styles.statusIcon, {backgroundColor: (eligible ? colors.success : colors.warning) + '22'}]}>
+            <Icon name={eligible ? 'check' : 'clock'} size={32} color={eligible ? colors.success : colors.warning} />
           </View>
-
-          {cert.rejectionReason && (
-            <View style={styles.rejectionBox}>
-              <Text style={styles.rejectionText}>Reason: {cert.rejectionReason}</Text>
-            </View>
-          )}
-
-          {cert.status === 'Approved' && cert.pdfPath && (
-            <TouchableOpacity id="download-certificate-pdf" style={styles.downloadBtn} onPress={downloadPdf}>
-              <Text style={styles.downloadBtnText}>📥 Download Certificate PDF</Text>
-            </TouchableOpacity>
+          <Text style={[styles.statusTitle, {color: eligible ? colors.success : colors.warning}]}>
+            {eligible ? 'Certificate Eligible' : 'Not Yet Eligible'}
+          </Text>
+          {eligible ? (
+            <Text style={styles.statusDesc}>You have met all requirements. Your certificate is ready.</Text>
+          ) : (
+            <Text style={styles.statusDesc}>
+              {!endDatePassed
+                ? 'Your internship period has not ended yet.'
+                : taskPct < taskThreshold
+                  ? 'You have not met the task-completion requirement yet.'
+                  : `Complete your internship period and maintain ${threshold}% attendance to qualify.`}
+            </Text>
           )}
         </View>
-      )}
 
-      {/* Apply Modal */}
-      <Modal visible={showApplyModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <ScrollView>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Certificate Application</Text>
-              <Text style={styles.modalSubtitle}>This information will appear on your official certificate</Text>
-
-              {[
-                {key:'projectName', label:'Project Name *', placeholder:'e.g. PIA IT Workshop'},
-                {key:'languagesUsed', label:'Technologies / Languages Used *', placeholder:'e.g. HTML, CSS, JavaScript, .NET, SQL Server'},
-                {key:'projectOutcomes', label:'Project Outcomes *', placeholder:'Describe what you built and achieved...', multiline: true},
-                {key:'additionalNotes', label:'Additional Notes', placeholder:'Any other information...', multiline: true},
-              ].map(f => (
-                <View key={f.key} style={styles.formField}>
-                  <Text style={styles.fieldLabel}>{f.label}</Text>
-                  <TextInput
-                    id={`cert-${f.key}`}
-                    style={[styles.fieldInput, f.multiline && styles.textArea]}
-                    placeholder={f.placeholder}
-                    placeholderTextColor={theme.colors.textMuted}
-                    multiline={f.multiline}
-                    numberOfLines={f.multiline ? 4 : 1}
-                    value={form[f.key]}
-                    onChangeText={v => setForm(p => ({...p, [f.key]: v}))}
-                  />
-                </View>
-              ))}
-
-              <View style={styles.modalActions}>
-                <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowApplyModal(false)}>
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity id="submit-certificate" style={styles.createBtn} onPress={applyCertificate} disabled={applying}>
-                  {applying ? <ActivityIndicator color="#fff" /> : <Text style={styles.createBtnText}>Submit</Text>}
-                </TouchableOpacity>
-              </View>
+        {/* Stats */}
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{pct.toFixed(1)}%</Text>
+            <Text style={styles.statLabel}>Attendance</Text>
+            <View style={styles.progressBar}>
+              <View style={[styles.progressFill, {width: `${Math.min(pct, 100)}%`, backgroundColor: pct >= threshold ? colors.success : colors.warning}]} />
             </View>
-          </ScrollView>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{threshold}%</Text>
+            <Text style={styles.statLabel}>Required</Text>
+          </View>
         </View>
-      </Modal>
-    </ScrollView>
+
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{taskPct.toFixed(1)}%</Text>
+            <Text style={styles.statLabel}>Tasks</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{endDatePassed ? 'Ended' : 'Ongoing'}</Text>
+            <Text style={styles.statLabel}>Period</Text>
+          </View>
+        </View>
+
+        {eligible && (
+          <View style={styles.downloadCard}>
+            <Icon name="file" size={24} color={colors.textAccent} />
+            <Text style={styles.downloadText}>Your completion certificate will be available here once issued by your mentor.</Text>
+          </View>
+        )}
+
+      </ScrollView>
+    </ScreenBackground>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {flex:1, backgroundColor:theme.colors.background},
-  center: {flex:1, justifyContent:'center', alignItems:'center', backgroundColor:theme.colors.background},
-  header: {padding:20, paddingTop:40},
-  title: {color:theme.colors.text, fontSize:24, fontWeight:'700'},
-  subtitle: {color:theme.colors.textMuted, fontSize:14, marginTop:4},
-  emptyCard: {margin:20, backgroundColor:theme.colors.surface, borderRadius:20, padding:32, alignItems:'center', borderWidth:1, borderColor:theme.colors.border},
-  emptyIcon: {fontSize:56, marginBottom:12},
-  emptyTitle: {color:theme.colors.text, fontSize:18, fontWeight:'700'},
-  emptyDesc: {color:theme.colors.textSecondary, fontSize:14, textAlign:'center', marginTop:8, marginBottom:24},
-  applyBtn: {backgroundColor:theme.colors.primary, borderRadius:12, paddingHorizontal:24, paddingVertical:12},
-  applyBtnText: {color:'#fff', fontWeight:'700', fontSize:15},
-  statusCard: {margin:20, backgroundColor:theme.colors.surface, borderRadius:20, padding:24, alignItems:'center', borderWidth:1, borderColor:theme.colors.border},
-  statusIcon: {fontSize:56, marginBottom:8},
-  statusLabel: {fontSize:20, fontWeight:'700', marginBottom:4},
-  statusDate: {color:theme.colors.textMuted, fontSize:12},
-  detailsBox: {width:'100%', backgroundColor:theme.colors.card, borderRadius:12, padding:16, marginTop:16},
-  detailLabel: {color:theme.colors.textMuted, fontSize:11, fontWeight:'700', textTransform:'uppercase', letterSpacing:1, marginTop:12},
-  detailValue: {color:theme.colors.text, fontSize:14, marginTop:4},
-  rejectionBox: {backgroundColor:theme.colors.error+'22', borderRadius:8, padding:12, marginTop:12, width:'100%'},
-  rejectionText: {color:theme.colors.error, fontSize:13},
-  downloadBtn: {backgroundColor:theme.colors.success, borderRadius:12, paddingHorizontal:24, paddingVertical:12, marginTop:20, width:'100%', alignItems:'center'},
-  downloadBtnText: {color:'#fff', fontWeight:'700', fontSize:15},
-  // Modal
-  modalOverlay: {flex:1, backgroundColor:'rgba(0,0,0,0.7)'},
-  modalContent: {backgroundColor:theme.colors.surface, borderTopLeftRadius:24, borderTopRightRadius:24, padding:24, marginTop:'auto'},
-  modalTitle: {color:theme.colors.text, fontSize:18, fontWeight:'700', marginBottom:4},
-  modalSubtitle: {color:theme.colors.textMuted, fontSize:13, marginBottom:20},
-  formField: {marginBottom:14},
-  fieldLabel: {color:theme.colors.textSecondary, fontSize:12, fontWeight:'600', marginBottom:6},
-  fieldInput: {backgroundColor:theme.colors.card, borderRadius:10, borderWidth:1, borderColor:theme.colors.border, color:theme.colors.text, paddingHorizontal:14, paddingVertical:12, fontSize:14},
-  textArea: {height:100, textAlignVertical:'top'},
-  modalActions: {flexDirection:'row', gap:12, marginTop:8},
-  cancelBtn: {flex:1, backgroundColor:theme.colors.card, borderRadius:12, paddingVertical:14, alignItems:'center', borderWidth:1, borderColor:theme.colors.border},
-  cancelBtnText: {color:theme.colors.textSecondary, fontWeight:'600'},
-  createBtn: {flex:1, backgroundColor:theme.colors.primary, borderRadius:12, paddingVertical:14, alignItems:'center'},
-  createBtnText: {color:'#fff', fontWeight:'700'},
+const makeStyles = colors => StyleSheet.create({
+  container:{flex:1}, center:{flex:1, justifyContent:'center', alignItems:'center'},
+  menuBtn:{backgroundColor:'rgba(255,255,255,0.18)', borderWidth:1, borderColor:'rgba(255,255,255,0.35)', borderRadius:20, paddingHorizontal:12, paddingVertical:8},
+  statusCard:{alignItems:'center', backgroundColor:colors.surface, margin:16, borderRadius:20, padding:24, borderWidth:1},
+  statusIcon:{width:64, height:64, borderRadius:32, alignItems:'center', justifyContent:'center', marginBottom:12},
+  statusTitle:{fontSize:20, fontWeight:'800', marginBottom:6},
+  statusDesc:{color:colors.textSecondary, fontSize:13, textAlign:'center', lineHeight:20},
+  statsRow:{flexDirection:'row', gap:12, marginHorizontal:16, marginBottom:12},
+  statCard:{flex:1, backgroundColor:colors.surface, borderRadius:14, padding:16, borderWidth:1, borderColor:colors.border, alignItems:'center'},
+  statValue:{color:colors.text, fontSize:22, fontWeight:'800'},
+  statLabel:{color:colors.textMuted, fontSize:11, fontWeight:'600', marginTop:4, textTransform:'uppercase'},
+  progressBar:{width:'100%', height:6, backgroundColor:colors.card, borderRadius:3, marginTop:8, overflow:'hidden'},
+  progressFill:{height:'100%', borderRadius:3},
+  downloadCard:{flexDirection:'row', alignItems:'center', gap:12, margin:16, backgroundColor:colors.primary+'12', borderRadius:14, padding:16, borderWidth:1, borderColor:colors.primary+'33'},
+  downloadText:{flex:1, color:colors.textSecondary, fontSize:13, lineHeight:18},
 });

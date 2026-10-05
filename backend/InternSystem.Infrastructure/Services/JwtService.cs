@@ -29,13 +29,14 @@ public class JwtService
             new Claim(ClaimTypes.Name, user.Username),
             new Claim(ClaimTypes.Role, user.Role.ToString()),
             new Claim("role", user.Role.ToString()),
+            new Claim("tvn", user.TokenVersion.ToString()),
         };
 
         var token = new JwtSecurityToken(
             issuer: jwtSettings["Issuer"],
             audience: jwtSettings["Audience"],
             claims: claims,
-            expires: DateTime.UtcNow.AddHours(8),
+            expires: DateTime.UtcNow.AddHours(1),
             signingCredentials: creds
         );
 

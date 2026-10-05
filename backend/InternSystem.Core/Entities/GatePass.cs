@@ -34,7 +34,7 @@ public class GatePass
     // Generated PDF
     public string? PdfPath { get; set; }
 
-    public DateTime RequestedAt { get; set; } = DateTime.UtcNow;
+    public DateTime RequestedAt { get; set; } = DateTime.Now;
 }
 
 public class IdCardRequest
@@ -54,5 +54,5 @@ public class IdCardRequest
     public string? RejectionReason { get; set; }
     public string? PdfPath { get; set; }
 
-    public DateTime RequestedAt { get; set; } = DateTime.UtcNow;
+    public DateTime RequestedAt { get; set; } = DateTime.Now;
 }
