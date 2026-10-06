@@ -296,3 +296,100 @@ Session that (re)implemented and verified certificate templates, gatepass layout
 - **Status:** implemented (unchanged behaviour, decision recorded).
 - **ID note:** the owner issued this as "D-S12"; D-S12 was already assigned to
   anti-spoof Path A, so this is **D-S17**.
+
+### D-S21 — Uniform error shape for model-binding failures
+
+- **Decision:** `Program.cs` configures
+  `InvalidModelStateResponseFactory` so any 400 caused by DTO binding
+  failure returns `{"message": "..."}` — the same shape controllers
+  return for their own validation errors. The message names the
+  offending field where possible ("Invalid value for 'startDate'.").
+- **Rationale:** The mobile client's error handler reads
+  `e.response?.data?.message`. Before this change, a model-binding
+  failure produced an RFC 9110 problem-details body with no `message`
+  field, so the app showed the generic "Try again" toast with no
+  actionable information. This was the root cause of the createIntern
+  "generic try again" bug: the admin form sent `startDate: ""` /
+  `endDate: ""` for blank dates, which cannot bind to the non-nullable
+  `DateTime` fields of `AdminCreateInternRequest`.
+- **Impact:** All 400 responses from DTO binding now carry a
+  user-readable message. The client's fallback toast becomes a last
+  resort instead of the common path.
+- **Constraint:** Future custom error responses must use the same
+  `{"message": "..."}` shape. Do not introduce a new envelope.
+- **Status:** implemented and verified 2026-10-06 (empty-date POST
+  previously returned the problem-details envelope with no `message`;
+  after the change it returns `HTTP 400 {"message":"Invalid value for
+  'startDate'. Check the submitted fields and try again."}`).
+
+---
+
+### D-S23 — Attendance captures are retained for both outcomes
+
+- **Decision:** The photo captured during an attendance attempt is
+  stored server-side for **both** successful and failed attempts.
+  Successful captures are served to the intern (own history) and to
+  mentor/admin (attendance views). Failed captures are served to
+  mentor/admin only (REQ-05 §5.3) and are not shown to the intern.
+- **Rationale:** Successful captures were already retained and
+  displayed before this decision; the change is extending the same
+  retention to the failure path so a mentor can distinguish a
+  genuine failed match (lighting, glasses, angle) from an attempted
+  impersonation. The failed path is additive, not a new class of
+  retention.
+- **Corrects:** FACE-02 in `AGENTS.md` §4.4 and
+  `FACE_RECOGNITION_AND_SYSTEM_GUIDE.md` §2, both of which claimed
+  the raw photo is never persisted. That claim did not match the
+  code. The corrected wording is in Ruling 1b below.
+- **Scope:** Attendance captures only. Face-enrollment captures are
+  out of scope for this decision — Q6 remains open.
+- **Retention:** Both success and failure captures share the same
+  retention policy. The policy value is Q8a (still open). Do not
+  implement retention changes until Q8a is answered.
+- **Status:** to implement (part of REQ-05).
+
+#### Verified current behaviour (grep evidence, 2026-10-06)
+
+Search pattern: `attendance.*\.jpg|attendance-photos|attendance-failures|SaveAttendancePhoto|photoPath|PhotoPath`
+(equivalently `photoPath|PhotoPath`), scope `backend/InternSystem.API` and
+`backend/InternSystem.Infrastructure`, `--include=*.cs`. A match would have
+been any assignment of a stored image path to an attendance or verification
+entity. `rg` is not installed on this machine; `grep -rnE` with the same
+pattern and the same two directories was used.
+
+**Write path — one, single location.**
+
+| What | file:line |
+|------|-----------|
+| `SaveBase64ImageAsync(req.FaceImage, Path.Combine("faces", intern.Id.ToString(), "verify"))` | `AttendanceVerificationController.cs:252-253` |
+| result assigned to `session.VerificationPhotoPath` | `AttendanceVerificationController.cs:258` |
+| copied onto the attendance row on check-in | `AttendanceVerificationController.cs:377` (`CheckInPhotoPath`) |
+| copied onto the attendance row on check-out | `AttendanceVerificationController.cs:516`, and again at `:534` |
+
+**Column existence (schema-guard, not migrations).**
+`Program.cs:212-215` adds `Attendances.CheckInPhotoPath` /
+`CheckOutPhotoPath`; `Program.cs:220-221` adds
+`AttendanceVerificationSessions.VerificationPhotoPath`.
+
+**Read paths (served to roles).**
+
+| Surface | file:line |
+|---------|-----------|
+| admin intern list, per-attendance photos | `AdminController.cs:526-527` |
+| admin attendance projection | `AdminController.cs:1852-1853` |
+| mentor attendance projections | `MentorController.cs:152-153`, `:243-244`, `:676-677` |
+| intern own history | `InternController.cs:654` |
+
+**On-disk confirmation.** `uploads/faces/{internId}/verify/` exists for at
+least intern ids 4, 128 and 1241 (`find uploads -type d -name verify`).
+`FileService.cs:31` creates the `faces` root on startup.
+`uploads/attendance-failures/` does **not** exist — the failure path has no
+storage yet, which is exactly what REQ-05 adds.
+
+**Important sequencing detail, not visible in the ruling text:** the write at
+line 252 sits *after* the liveness, anti-spoof, enrollment and match gates,
+so on a face mismatch the capture is **currently discarded**
+(`AttendanceVerificationController.cs:229-249` returns before line 252).
+REQ-05 therefore does not "stop discarding on the failure path" for that
+gate — it must move or add a write *earlier* in the method. Worth
+confirming before implementation.
