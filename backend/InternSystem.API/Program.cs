@@ -265,3 +265,9 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+// Top-level statements generate an internal Program class. WebApplicationFactory<Program>
+// in InternSystem.API.Tests cannot see internal types, so the generated entry point is
+// re-declared public here. Removing this line breaks every integration test in that
+// project at compile time, which is the intended failure mode.
+public partial class Program { }
