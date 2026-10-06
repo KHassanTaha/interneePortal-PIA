@@ -1119,12 +1119,41 @@ net is needed, create a fresh tag from the current `main` first.
 - Do not run `git reset --hard` without asking.
 - Do not add secrets, tokens, or credentials to the repo.
 - Do not add a CI workflow that requires paid runners without asking.
+- **Do not run state-changing git commands on a branch you do not
+  own.** Before any of the following:
+    - `git commit --amend`
+    - `git rebase`
+    - `git reset` (any mode)
+    - `git branch -f`
+    - `git cherry-pick`
+    - `git push --force` or `--force-with-lease`
+  Verify three things first:
+    1. Which branch am I on? (`git branch --show-current`)
+    2. Who owns this branch? (Is it mine, a teammate's, or shared?)
+    3. Has this branch been pushed? (`git log --oneline
+       origin/<branch> -3`)
+  If the answer to (2) is not "mine," stop and ask. Multiple
+  agents share this repository; a state-changing command on a
+  teammate's branch corrupts their work.
 
 ### 17.6 No GitHub Actions for now
 
 CI is deferred by owner decision. Do not add a workflow file. When enabled, it
 will run `dotnet test` and `npx jest` on both Linux and Windows and put a badge
 in `README.md`.
+
+### 17.7 Multi-agent coordination
+
+When two or more agents are working in the same repository, they
+must not share a working tree. Each agent uses either:
+  - A separate clone, OR
+  - A `git worktree` at a separate path (e.g.
+    `git worktree add /tmp/<name> <branch>`).
+
+A shared working tree means one agent's uncommitted work can be
+silently carried onto another agent's branch during a checkout.
+The CAS refactor's agent used a worktree correctly; this rule
+records the pattern as required, not optional.
 
 ---
 
