@@ -400,6 +400,7 @@ set -euo pipefail
 ROOT="/home/taha/Documents/pia-interns-app"
 SA_PASS='<SA password>'
 CONN='<ConnectionStrings__DefaultConnection value — §3 SQL auth string>'
+JWT='<Jwt__Key signing key — §4 of docs/DEVELOPMENT_CREDENTIALS.md (required; API fails closed without it)>'
 
 pkill -f "react-native start" 2>/dev/null || true
 pkill -f "metro" 2>/dev/null || true
@@ -432,6 +433,7 @@ fi
 cd "$ROOT/backend/InternSystem.API"
 dotnet restore && dotnet build --no-restore -c Release
 setsid env ASPNETCORE_ENVIRONMENT=Development "ConnectionStrings__DefaultConnection=$CONN" \
+  "Jwt__Key=$JWT" \
   nohup dotnet run --no-build -c Release > "$ROOT/backend/intern-api.log" 2>&1 < /dev/null &
 until ss -ltn | grep -q ':5000 '; do sleep 2; done
 
@@ -458,6 +460,52 @@ echo "   Logs:     tail -f $ROOT/backend/intern-api.log $ROOT/metro.log"
 ```
 
 ---
+
+## Test prerequisites (backend test suite)
+
+`backend/tests/` contains three xUnit projects. Two of them need nothing;
+`InternSystem.Integration.Tests` needs a running SQL Server and will **fail
+loudly** without one rather than skipping, because SQL Server is the entire
+point of that project.
+
+Provider policy and the reasons SQLite and InMemory were rejected are recorded in
+`backend/tests/README.md`. There is no InMemory project and there must not be one.
+
+### Verify the server first
+
+```bash
+# Linux / Docker
+docker ps --filter name=sqlserver
+```
+
+```powershell
+# Windows / SQL Express
+sqlcmd -S .\SQLEXPRESS -E -Q "SELECT @@VERSION"
+```
+
+### Connection string resolution
+
+1. `TEST_CONNECTION_STRING` environment variable, if set. This is the CI path.
+2. Otherwise the `Server=` connection string recorded in
+   `docs/DEVELOPMENT_CREDENTIALS.md`, found by walking up from the test binary.
+3. If neither yields a value the fixture throws and names both options.
+
+### The test database is never reused
+
+Each run creates `InternSystemTest_{Guid}` and drops it afterwards. The fixture
+**overrides** `Database=` in the resolved connection string, so even a connection
+string naming the app database `InternSystemDB` produces a separate ephemeral
+database. You cannot accidentally point the tests at your working data, and you
+do not need to create or seed anything beforehand.
+
+```bash
+cd backend
+dotnet test
+```
+
+Schema is built with `EnsureCreated()` from the current EF model. Migrations are
+not used: AGENTS.md 4.10 records that the migration snapshot is stale and that
+`dotnet ef migrations` would corrupt the migration history.
 
 ## 12. Troubleshooting Quick Reference
 
@@ -501,8 +549,11 @@ adb emu kill
 docker stop sqlserver
 ```
 
+| Integration tests fail with 'Cannot open database' or similar | SQL Server is not running, or the connection string is wrong. See **Test prerequisites** above. |
+
 ---
 
-**Last Updated**: 2026-09-24 · **Version**: 1.1 · **Compatible**: .NET 8, React Native 0.86, Node 22.11+, Android SDK 34
+**Last Updated**: 2026-10-06 · **Version**: 1.2 · **Compatible**: .NET 8, React Native 0.86, Node 22.11+, Android SDK 34
 
+> **1.2 changes**: quick-start script now sets `Jwt__Key` (the signing key is not committed — see §4 of `docs/DEVELOPMENT_CREDENTIALS.md`; without it the API refuses to start by design). The interactive backend-start commands in §5 already set all three required env vars.
 > **1.1 changes**: backend start now sets `ASPNETCORE_ENVIRONMENT=Development` + `ConnectionStrings__DefaultConnection` (fail-closed startup); fixed the invalid `dotnet clean --no-build`; ready-check uses port 5000 instead of a 401 endpoint; `adb reverse` now required for emulator **and** physical USB phones; added docker-group permission note, DB-create guard before seeding, and the slow-first-build warning.
