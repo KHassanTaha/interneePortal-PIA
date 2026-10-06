@@ -428,6 +428,33 @@ REQ-05 §5.3 and Q9b, still open.
 
 ---
 
+### D-S24 — Critical state machines route through CAS; tests must exercise the production path, not a reimplementation
+
+- **Decision:** Every state machine that transitions a
+  domain-critical record (transfers, document approvals, face
+  enrollment, certificate issuance) routes its transitions
+  through `StateTransitions.TryUpdateAsync`. Controllers hold no
+  inline read-modify-write status logic.
+- **Rationale:** D-12 required CAS for single-winner transitions,
+  but the transfer flow was never migrated. The CAS test suite
+  passed because it exercised `StateTransitions` directly —
+  production transfers did not call it. A green test on an
+  unused code path is worse than no test: it produces false
+  confidence. This decision makes the code and the tests exercise
+  the same path.
+- **Corrects:** AGENTS.md §4.3 D-12 row, which implied CAS
+  covered all state transitions. It did not cover transfers until
+  this refactor.
+- **Status:** implemented 2026-10-06. `TransferStateMachine` extracted to
+  `InternSystem.Infrastructure/Services/`; all eight transfer transition
+  call sites in the three controllers are thin wrappers; a lost race now
+  returns 409 STALE_STATE. Also added the missing `InternAccepted →
+  Rejected` path (the receiving mentor had no refusal route once the
+  intern accepted) and an explicit role guard on finalise, replacing the
+  incidental `GetCurrentMentor() == null` → 404 check.
+
+---
+
 ### D-S25 — Geofence gate reads department coordinates only; fails closed when absent
 
 - **Decision:** The attendance geofence reads
