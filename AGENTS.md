@@ -616,6 +616,11 @@ When the owner announces a demo:
     `__tests__/App.test.tsx` sat at the repo root.
   - A grep for `"text outside Text"` and `"missing key"` — strings
     React Native does not emit — reported "C1/C2 do not reproduce".
+  - Three separate property names were invented for test fixtures
+    (`GeofenceRadiusMeters`, `InternRegNo`, `User.FullName`) and none of them
+    existed. The entities expose `RadiusMeters`, `RegNo`, and no `FullName` on
+    `User`. Compilation caught it, but only after a guess had been written down
+    as if it were fact.
   - `dotnet list package --vulnerable` without `--include-transitive`
     reported "zero vulnerable packages across all three projects"
     while three High-severity transitives were present.
@@ -625,7 +630,23 @@ When the owner announces a demo:
 - **Screenshot evidence is append-only.** Never overwrite a screenshot cited
   as evidence of a defect. Add a new file.
 
-### 10.7 No duplicate instructions
+### 10.7 Names are guesses, not facts
+
+A property, method, column, table, enum member, or file path that you did not
+just read out of the source is a guess. Guesses are fine to form; the failure is
+treating one as verified.
+
+- **Read before you write.** `grep` the actual declaration first. Do not infer a
+  name from a sibling class, a similar entity, or a comment.
+- **Never let a guess reach a commit.** If you asserted against a name that does
+  not exist, the test is fiction and the suite is worse than no suite.
+- **When corrected, correct the test, not the production code.** If a fixture
+  disagrees with the service, the fixture is wrong until proven otherwise.
+  Record which side was wrong.
+- **A wrong guess is a finding worth writing down**, because the next agent will
+  make a similar one.
+
+### 10.8 No duplicate instructions
 
 Each instruction in the launch guides and user manual has exactly one
 canonical location. If the same step appears twice, consolidate and
@@ -791,6 +812,11 @@ exception with stack trace.
 - **Never** use `console.log` for anything that should be logged. Use the
   logger abstraction. (The single exception is the `[toast]` testability log
   in §12.1.)
+- **Server error responses use `{"message": "..."}`.** Controllers,
+  model-binding failures (via `InvalidModelStateResponseFactory`), and the
+  global exception handler all return this shape. The mobile client's error
+  handler reads `e.response?.data?.message`. Do not introduce a different
+  envelope for a new endpoint.
 
 ---
 

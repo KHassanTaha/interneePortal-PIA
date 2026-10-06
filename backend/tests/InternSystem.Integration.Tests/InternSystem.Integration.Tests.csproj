@@ -5,20 +5,28 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
-    <RootNamespace>InternSystem.Core.Tests</RootNamespace>
+    <RootNamespace>InternSystem.Integration.Tests</RootNamespace>
   </PropertyGroup>
 
-  <!-- W2.0 test scaffold. Packages pinned to versions verified present on
-       nuget.org and already in the local NuGet cache, so `dotnet test`
-       restores offline. -->
+  <!--
+    Real SQL Server. This project owns the database lifecycle: one ephemeral
+    database per run, dropped on disposal.
+
+    Provider policy and why SQLite and InMemory were rejected are recorded in
+    backend/tests/README.md - that file is the single canonical location.
+
+    Package versions pinned to releases verified present on nuget.org (HTTP 200)
+    and already in the local NuGet cache so restore works offline.
+  -->
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.6.0" />
-    <PackageReference Include="xunit" Version="2.4.2" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.4.5">
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.8" />
+    <PackageReference Include="coverlet.collector" Version="6.0.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="coverlet.collector" Version="6.0.0">
+    <PackageReference Include="xunit" Version="2.4.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.4.5">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>

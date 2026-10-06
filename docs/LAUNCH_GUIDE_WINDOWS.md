@@ -308,6 +308,52 @@ adb emu kill 2>$null
 
 ---
 
+## Test prerequisites (backend test suite)
+
+`backend/tests/` contains three xUnit projects. Two of them need nothing;
+`InternSystem.Integration.Tests` needs a running SQL Server and will **fail
+loudly** without one rather than skipping, because SQL Server is the entire
+point of that project.
+
+Provider policy and the reasons SQLite and InMemory were rejected are recorded in
+`backend/tests/README.md`. There is no InMemory project and there must not be one.
+
+### Verify the server first
+
+```bash
+# Linux / Docker
+docker ps --filter name=sqlserver
+```
+
+```powershell
+# Windows / SQL Express
+sqlcmd -S .\SQLEXPRESS -E -Q "SELECT @@VERSION"
+```
+
+### Connection string resolution
+
+1. `TEST_CONNECTION_STRING` environment variable, if set. This is the CI path.
+2. Otherwise the `Server=` connection string recorded in
+   `docs/DEVELOPMENT_CREDENTIALS.md`, found by walking up from the test binary.
+3. If neither yields a value the fixture throws and names both options.
+
+### The test database is never reused
+
+Each run creates `InternSystemTest_{Guid}` and drops it afterwards. The fixture
+**overrides** `Database=` in the resolved connection string, so even a connection
+string naming the app database `InternSystemDB` produces a separate ephemeral
+database. You cannot accidentally point the tests at your working data, and you
+do not need to create or seed anything beforehand.
+
+```bash
+cd backend
+dotnet test
+```
+
+Schema is built with `EnsureCreated()` from the current EF model. Migrations are
+not used: AGENTS.md 4.10 records that the migration snapshot is stale and that
+`dotnet ef migrations` would corrupt the migration history.
+
 ## 12. Troubleshooting Quick Reference
 
 | Issue | Fix |
@@ -325,6 +371,8 @@ adb emu kill 2>$null
 | Stale app behavior | Stale embedded bundle present → DELETE it and reinstall (§8) |
 | Gradle build fails | `cd InternApp\android && .\gradlew.bat clean && .\gradlew.bat assembleDebug` |
 | LogBox overlay swallows taps | Tap the "!" bubble once to dismiss |
+
+| Integration tests fail with 'Cannot open database' or similar | SQL Server is not running, or the connection string is wrong. See **Test prerequisites** above. |
 
 ---
 
