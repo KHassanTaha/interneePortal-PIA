@@ -393,3 +393,86 @@ so on a face mismatch the capture is **currently discarded**
 REQ-05 therefore does not "stop discarding on the failure path" for that
 gate — it must move or add a write *earlier* in the method. Worth
 confirming before implementation.
+
+#### Implementation note (2026-10-06) — REQ-05 mechanism change
+
+The write currently sits after all gates
+(`AttendanceVerificationController.cs:252`); on a gate failure, execution
+returns before the write and the capture is discarded. To retain
+failed-attempt photos, the write moves to the top of the method,
+immediately on receipt and before any gate. Successful-path behaviour is
+preserved (the file is written, just earlier). Failed-path behaviour
+changes: the file is now written where previously it was discarded.
+
+This is a **mechanism change, not a retention change**. Retaining the
+capture was never the hard part — the hard part is that the only existing
+write is positioned after every gate that can fail. The four early-return
+branches that currently discard the capture are `:166` (liveness),
+`:174` (missing face image), `:193` (challenge echo mismatch), `:203`
+(anti-spoof), `:218` (not enrolled), `:234` (embedding extraction) and
+`:243` (face mismatch). Each returns before line 252.
+
+**Storage path — corrected.** Failed captures go to a **new sibling
+path**, `uploads/faces/{internId}/verify-failures/`, not to
+`uploads/attendance-failures/`. The latter path does not exist in the
+codebase and was named in the original ruling text; a `find` for a
+directory of that name returns nothing. Keeping success and failure
+captures in separate directories means retention and inspection can treat
+them differently, and it removes any possibility of a failure capture
+being served as a success capture by a path that does not distinguish
+them. Success captures stay at `uploads/faces/{internId}/verify/`.
+
+Implementation must also ensure the intern-facing read paths
+(`InternController.cs:654`) never expose a `verify-failures` path — see
+REQ-05 §5.3 and Q9b, still open.
+
+---
+
+### D-S25 — Geofence gate reads department coordinates only; fails closed when absent
+
+- **Decision:** The attendance geofence reads
+  `Department.{Latitude, Longitude}` and nothing else. If either
+  is null, zero, or out of range, the gate returns
+  `MISSING_GEOFENCE_CONFIG` and the attempt is rejected. The
+  hardcoded fallback centres (24.894995, 67.152182 and 24.9065,
+  67.1608) are removed.
+- **Rationale:** The fallback silently re-centred the gate to a
+  fixed point when department data was missing, so an attendance
+  attempt far from any configured location could pass the check.
+  That is a fail-open behaviour on a security gate. Fail-closed
+  is correct. Also: the intern-row coordinate fields are not
+  geofence input — they describe the office location at creation
+  and are used elsewhere.
+- **Corrects:** The behaviour the owner observed — deleting
+  department coordinates did not block attendance, because the
+  fallback silently substituted a Karachi centre.
+- **Status:** to implement (REQ-01).
+
+#### Sites to change (grep evidence, 2026-10-06)
+
+| Site | Current behaviour |
+|------|-------------------|
+| `AttendanceVerificationController.cs:293-303` | Precedence: intern-row coords → department coords → hardcoded `24.894995`/`67.152182`. Intern-row coords are removed from the chain; the hardcoded pair is removed. |
+| `AttendanceVerificationController.cs:304-305` | Radius falls back to `100.0`. Decide separately whether a null radius is a config error or a legitimate default — **not settled by this decision**; raise before implementing. |
+| `InternController.cs:551-552` | Hardcoded `24.9065`/`67.1608`. Note this is a **different coordinate pair** from the one above, so the two attendance paths disagree about where the office is today. |
+| `InternController.cs:553` | Radius fallback `100.0` — same open question as above. |
+
+Nullable coordinate columns, for reference: `Department.Latitude` /
+`Longitude` / `RadiusMeters` (`Department.cs:9-11`),
+`Intern.Latitude` / `Longitude` (`Intern.cs:42-43`),
+`AttendanceVerificationSession.Latitude` / `Longitude`
+(`AttendanceVerificationSession.cs:35-36`).
+
+`Interns.Latitude` / `Longitude` are **retained** — they are not
+deleted by this decision. The code comments them as the "internship
+office location (captured at creation)"
+(`AttendanceVerificationController.cs:293`). This decision removes them
+from the **geofence centre resolution chain only**. What still reads
+them is not yet established and should be inventoried before
+implementation, so that removing them from the chain does not silently
+orphan a feature.
+
+Enforcement is required on **both** paths: client-side before the
+camera opens (REQ-01 acceptance criterion 3), and server-side as
+defence in depth. The error body uses the uniform `{"message": "..."}`
+shape per D-S21.
