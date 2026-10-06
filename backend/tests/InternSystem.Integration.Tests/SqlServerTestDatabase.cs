@@ -127,8 +127,23 @@ public class SqlServerTestDatabase : IAsyncLifetime
     public async Task ResetAsync()
     {
         await using var db = CreateContext();
-        await db.Database.ExecuteSqlRawAsync("DELETE FROM InternTransferRequests;");
-        await db.Database.ExecuteSqlRawAsync("DELETE FROM Attendances;");
+
+        // Child tables first, in FK order. These are exactly the tables with a
+        // foreign key into Interns/Users/Mentors; deleting Interns first fails with
+        // "DELETE statement conflicted with the REFERENCE constraint". Every list
+        // was read from sys.foreign_key_columns rather than guessed.
+        foreach (var table in new[]
+        {
+            "ActivityLogs", "Attendances", "AttendanceVerificationSessions",
+            "Certificates", "DepartmentHeads", "DocumentUploads",
+            "FaceEnrollmentRecords", "GatePasses", "IdCardRequests",
+            "InternShiftChangeRequests", "InternTransferRequests",
+            "MentorTransferRequests", "Notifications", "Tasks"
+        })
+        {
+            await db.Database.ExecuteSqlRawAsync($"DELETE FROM {table};");
+        }
+
         await db.Database.ExecuteSqlRawAsync("DELETE FROM PublicHolidays;");
         await db.Database.ExecuteSqlRawAsync("DELETE FROM Interns;");
         await db.Database.ExecuteSqlRawAsync("DELETE FROM Mentors;");
@@ -173,7 +188,7 @@ public class SqlServerTestDatabase : IAsyncLifetime
             "No SQL Server connection string for integration tests. " +
             "Option 1: set the TEST_CONNECTION_STRING environment variable. " +
             "Option 2: add a 'Server=' connection string to docs/DEVELOPMENT_CREDENTIALS.md. " +
-            "See docs/DEV_LAUNCH.md, section 'Test prerequisites'. " +
+            "See docs/LAUNCH_GUIDE_LINUX.md or docs/LAUNCH_GUIDE_WINDOWS.md, section 'Test prerequisites'. " +
             "These tests are not skipped because SQL Server is the entire point of this project.");
     }
 
