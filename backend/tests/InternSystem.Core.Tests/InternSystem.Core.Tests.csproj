@@ -25,6 +25,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- InMemory because SQLite cannot build this model: HasColumnType("nvarchar(max)")
+       at AppDbContext.cs:73 and :332 is SQL Server-only DDL and SQLite rejects it
+       with "near max: syntax error". Fixing that would mean editing production
+       model config, which a test change must not do.
+       Known limit: StateTransitions.TryUpdateAsync (the D-12 CAS helper) emits raw
+       UPDATE SQL that InMemory cannot execute, so approve/reject/finalise CAS paths
+       are NOT testable with this provider. Recorded as a W2 gap, not hidden. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.8" />
     <ProjectReference Include="..\..\InternSystem.Core\InternSystem.Core.csproj" />
     <ProjectReference Include="..\..\InternSystem.Infrastructure\InternSystem.Infrastructure.csproj" />
   </ItemGroup>
