@@ -538,3 +538,41 @@ shape per D-S21.
 Scope note: `FaceRecognitionService.cs:380` (`bestScore = 0.7f`) is an
 UltraFace detection-confidence floor, not a match or spoof gate, and is
 deliberately **not** changed by this decision.
+
+---
+
+### D-S27 — SQL Server test provider catches defects InMemory hides
+
+- **Decision:** The integration test project uses real SQL Server
+  (ephemeral per-run database). Do not propose InMemory as a
+  substitute for any test that touches a DbContext.
+- **Rationale:** Across the W2 test work, SQL Server caught four
+  distinct classes of defect that InMemory would have hidden:
+  (1) IDENTITY column assignment, (2) FK violations from loose
+  seed inserts, (3) enum-to-raw-SQL coercion (nvarchar column
+  received an int), (4) a foreign-key type confusion where a
+  Mentor id was written into a Department column and passed only
+  because ids coincidentally overlapped. Each was a real
+  production defect, not a test setup problem.
+- **Constraint:** Any new test project that touches a DbContext
+  must use the shared SQL Server fixture. InMemory is not an
+  acceptable provider for this codebase.
+- **Status:** implemented.
+
+### D-S28 — Test fixture reads FK dependencies from the schema
+
+- **Decision:** The integration test fixture's `ResetAsync()`
+  discovers child tables and their FK ordering by querying
+  `sys.foreign_key_columns` at reset time. It does not
+  hand-maintain a table list.
+- **Rationale:** A hand-maintained list drifts as new tables are
+  added. The reset then fails or silently leaves orphan rows,
+  producing test failures that look unrelated to the schema
+  change. Reading the dependencies from the schema means the
+  fixture self-maintains.
+- **Impact:** A new table with FKs to existing tables is handled
+  automatically. No fixture edit required.
+- **Status:** implemented 2026-10-06. Reset reads the FK graph and
+  deletes in descending dependency depth. This replaces a hard-coded
+  14-table list, which broke the moment the transfer state machine
+  began writing `ActivityLog` rows (`FK_ActivityLogs_Interns_TargetInternId`).

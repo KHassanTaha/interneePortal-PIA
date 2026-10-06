@@ -74,6 +74,11 @@ Tests share one database and reset between each other via
 holiday seeded by one test is visible to every later test and results depend on
 ordering.
 
+The fixture discovers FK dependencies at construction. Do not add tables to a
+hand-maintained list -- the schema is the source of truth. If a new table needs to
+be excluded from reset for a specific test, do that in the test, not in the
+fixture.
+
 Parallelism is not disabled globally. These tests share one collection fixture,
 and xUnit serialises tests within a collection while running separate
 collections in parallel.

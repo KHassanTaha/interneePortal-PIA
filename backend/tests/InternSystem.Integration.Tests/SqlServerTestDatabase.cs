@@ -1,5 +1,6 @@
 using System.Data.Common;
 using InternSystem.Infrastructure.Data;
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Xunit;
@@ -124,31 +125,102 @@ public class SqlServerTestDatabase : IAsyncLifetime
     ///
     /// Deletion order respects foreign keys: children before parents.
     /// </summary>
+    /// <summary>Tables the reset treats as roots; their rows are cleared last.</summary>
+    private static readonly string[] ResetRootTables = { "Interns", "Users", "Mentors" };
+
+    /// <summary>
+    /// Clears rows created by tests, leaving model seed data intact.
+    ///
+    /// The suite shares one database, so a PublicHoliday seeded by one test would
+    /// otherwise be visible to every later test that scores a Mon-Sun window, and
+    /// results would depend on ordering. Departments, Shifts and AttendanceSettings
+    /// are HasData seed rows that ComputeAsync reads by literal id, so they survive.
+    ///
+    /// The child tables and their delete order are discovered from
+    /// sys.foreign_key_columns at call time, not maintained as a list here. A
+    /// hand-written list drifts as tables are added, and the reset then fails on
+    /// "DELETE statement conflicted with the REFERENCE constraint" - a failure that
+    /// reads like a schema problem rather than a stale fixture (D-S28).
+    /// </summary>
     public async Task ResetAsync()
     {
         await using var db = CreateContext();
 
-        // Child tables first, in FK order. These are exactly the tables with a
-        // foreign key into Interns/Users/Mentors; deleting Interns first fails with
-        // "DELETE statement conflicted with the REFERENCE constraint". Every list
-        // was read from sys.foreign_key_columns rather than guessed.
-        foreach (var table in new[]
+        var parentsByChild = await ReadForeignKeyGraphAsync(db);
+        var roots = new HashSet<string>(ResetRootTables, StringComparer.OrdinalIgnoreCase);
+
+        // A child table must be emptied before any table it points at. Depth is
+        // "longest chain of references into this table", so deleting in descending
+        // depth order clears every referrer first.
+        var candidates = parentsByChild.Keys
+            .Where(c => !roots.Contains(c))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var depth = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        int DepthOf(string table, int guard)
         {
-            "ActivityLogs", "Attendances", "AttendanceVerificationSessions",
-            "Certificates", "DepartmentHeads", "DocumentUploads",
-            "FaceEnrollmentRecords", "GatePasses", "IdCardRequests",
-            "InternShiftChangeRequests", "InternTransferRequests",
-            "MentorTransferRequests", "Notifications", "Tasks"
-        })
-        {
-            await db.Database.ExecuteSqlRawAsync($"DELETE FROM {table};");
+            if (depth.TryGetValue(table, out var known)) return known;
+            if (guard > candidates.Count) return 0; // defensive: a cycle cannot occur in a valid schema
+            var value = 0;
+            foreach (var parent in parentsByChild[table])
+            {
+                if (parent.Equals(table, StringComparison.OrdinalIgnoreCase)) continue;
+                value = Math.Max(value, 1 + (candidates.Contains(parent) ? DepthOf(parent, guard + 1) : 0));
+            }
+            depth[table] = value;
+            return value;
         }
 
-        await db.Database.ExecuteSqlRawAsync("DELETE FROM PublicHolidays;");
-        await db.Database.ExecuteSqlRawAsync("DELETE FROM Interns;");
-        await db.Database.ExecuteSqlRawAsync("DELETE FROM Mentors;");
-        // Id 1 is the seeded admin user; keep it and drop only test-created users.
-        await db.Database.ExecuteSqlRawAsync("DELETE FROM Users WHERE Id > 1;");
+        foreach (var table in candidates) DepthOf(table, 0);
+
+        foreach (var table in candidates.OrderByDescending(name => depth[name]).ThenBy(name => name, StringComparer.OrdinalIgnoreCase))
+            await db.Database.ExecuteSqlRawAsync($"DELETE FROM [{table}];");
+
+        // PublicHolidays has no FK into the roots but is still per-test data.
+        if (!candidates.Contains("PublicHolidays"))
+            await db.Database.ExecuteSqlRawAsync("DELETE FROM [PublicHolidays];");
+
+        foreach (var table in roots)
+        {
+            // Id 1 is the seeded admin user; keep it and drop only test-created users.
+            var predicate = table == "Users" ? " WHERE Id > 1" : "";
+            await db.Database.ExecuteSqlRawAsync($"DELETE FROM [{table}]{predicate};");
+        }
+    }
+
+    /// <summary>
+    /// Reads every foreign key as child-table -> set of parent-tables, straight from
+    /// the catalog. This is what makes the reset self-maintaining.
+    /// </summary>
+    private static async Task<Dictionary<string, HashSet<string>>> ReadForeignKeyGraphAsync(AppDbContext db)
+    {
+        var graph = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        var connection = db.Database.GetDbConnection();
+        var wasClosed = connection.State != ConnectionState.Open;
+        if (wasClosed) await connection.OpenAsync();
+        try
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = @"
+                SELECT cp.name AS ChildTable, tr.name AS ParentTable
+                FROM sys.foreign_key_columns fkc
+                JOIN sys.tables cp ON fkc.parent_object_id = cp.object_id
+                JOIN sys.tables tr ON fkc.referenced_object_id = tr.object_id";
+            await using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var child = reader.GetString(0);
+                var parent = reader.GetString(1);
+                if (!graph.TryGetValue(child, out var parents))
+                    graph[child] = parents = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                parents.Add(parent);
+            }
+        }
+        finally
+        {
+            if (wasClosed) await connection.CloseAsync();
+        }
+        return graph;
     }
 
     /// <summary>Creates a fresh context against this run's database.</summary>
