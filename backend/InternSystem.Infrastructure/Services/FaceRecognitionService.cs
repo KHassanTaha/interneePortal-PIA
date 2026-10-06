@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
@@ -15,7 +16,9 @@ namespace InternSystem.Infrastructure.Services;
 ///   1. UltraFace (RFB-320)            — face bounding-box detection.
 ///   2. MiniFASNetV2                   — passive anti-spoof (prints / screen replays).
 ///   3. FaceNet / ArcFace               — 512-d embedding, L2 normalized.
-///   4. Cosine distance                  — match gate (default 0.58).
+///   4. Cosine distance                  — match gate. Threshold comes from
+///                                         configuration key
+///                                         "FaceMatchThreshold" (default 0.58).
 ///
 /// Security posture: FAIL-CLOSED. If a model is missing or an image fails to
 /// parse, the check fails rather than silently passing. A client can never
@@ -24,26 +27,84 @@ namespace InternSystem.Infrastructure.Services;
 public class FaceRecognitionService : IDisposable
 {
     private readonly ILogger<FaceRecognitionService> _logger;
-    private readonly InferenceSession? _arcFaceSession;
-    private readonly InferenceSession? _ultraFaceSession;
-    private readonly InferenceSession? _antiSpoofSession;
+    // Not readonly: assigned in LoadModels(), which the constructor delegates to.
+    private InferenceSession? _arcFaceSession;
+    private InferenceSession? _ultraFaceSession;
+    private InferenceSession? _antiSpoofSession;
     private readonly string _modelDir;
 
     private int _inputWidth = 112;
     private int _inputHeight = 112;
     private string _inputName = "input";
 
-    /// <summary>ArcFace cosine distance threshold (1.0 - cosine similarity).</summary>
-    public const double DefaultThreshold = 0.70;
+    /// <summary>
+    /// Fallback ArcFace cosine distance threshold, used only when the
+    /// "FaceMatchThreshold" configuration key is absent or unreadable.
+    /// </summary>
+    public const double DefaultThreshold = 0.58;
 
-    /// <summary>MiniFASNetV2 real-face score threshold (score >= this = live face).</summary>
-    public const double DefaultSpoofThreshold = 0.40;
+    /// <summary>
+    /// Fallback MiniFASNetV2 real-face score threshold, used only when the
+    /// "SpoofThreshold" configuration key is absent or unreadable.
+    /// </summary>
+    public const double DefaultSpoofThreshold = 0.60;
 
-    public FaceRecognitionService(ILogger<FaceRecognitionService> logger, string modelDir)
+    /// <summary>Effective ArcFace cosine distance gate (1.0 - cosine similarity).</summary>
+    public double MatchThreshold { get; }
+
+    /// <summary>Effective MiniFASNetV2 real-face score gate (score >= this = live face).</summary>
+    public double SpoofThreshold { get; }
+
+    public FaceRecognitionService(
+        ILogger<FaceRecognitionService> logger,
+        string modelDir,
+        IConfiguration? configuration = null)
     {
         _logger = logger;
         _modelDir = modelDir;
 
+        // Security gates are configuration-driven so they can be tuned without a
+        // code change. The code previously hardcoded a MORE PERMISSIVE match gate
+        // (0.70) and a LOOSER anti-spoof gate (0.40) than the documented values,
+        // while an unused "FaceMatchThreshold": 0.58 sat in appsettings.json.
+        // See DECISIONS_LOG.md D-S26.
+        MatchThreshold = ReadThreshold(configuration, "FaceMatchThreshold", DefaultThreshold, "match");
+        SpoofThreshold = ReadThreshold(configuration, "SpoofThreshold", DefaultSpoofThreshold, "anti-spoof");
+        _logger.LogWarning(
+            "Face thresholds in effect: match <= {MatchThreshold:F4}, anti-spoof >= {SpoofThreshold:F4}",
+            MatchThreshold, SpoofThreshold);
+
+        LoadModels();
+    }
+
+    /// <summary>
+    /// Reads a threshold from configuration, falling back to the documented default.
+    /// A missing key is not an error; an unreadable or out-of-range value IS, because
+    /// silently accepting it would widen a security gate without anyone noticing.
+    /// </summary>
+    private static double ReadThreshold(IConfiguration? configuration, string key, double fallback, string label)
+    {
+        var raw = configuration?[key];
+        if (string.IsNullOrWhiteSpace(raw))
+            return fallback;
+
+        if (!double.TryParse(raw, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var value))
+            throw new InvalidOperationException(
+                $"Configuration key '{key}' is not a valid number (value: '{raw}'). Refusing to start with an unreadable {label} threshold.");
+
+        // Both gates are cosine distances / normalised scores in [0, 1]. A value
+        // outside that range is a configuration error, not a tuning choice.
+        if (value < 0.0 || value > 1.0)
+            throw new InvalidOperationException(
+                $"Configuration key '{key}' must be between 0 and 1 (value: {value}). Refusing to start with an out-of-range {label} threshold.");
+
+        return value;
+    }
+
+    /// <summary>Loads the three ONNX sessions. Separate from the constructor body above.</summary>
+    private void LoadModels()
+    {
         var arcFacePath = Path.Combine(_modelDir, "facenet.onnx");
         var ultraFacePath = Path.Combine(_modelDir, "ultraface.onnx");
         var antiSpoofPath = Path.Combine(_modelDir, "antispoof.onnx");
@@ -205,7 +266,7 @@ public class FaceRecognitionService : IDisposable
             double sum = exp.Sum();
             double realScore = exp.Length > 1 ? (exp[1] / sum) : 0.0;
 
-            bool isReal = realScore >= DefaultSpoofThreshold;
+            bool isReal = realScore >= SpoofThreshold;
             _logger.LogWarning("Anti-spoof debug: realScore={RealScore:F4} isReal={IsReal} faceRect={FaceRect} imageBytes={Bytes}", realScore, isReal, faceRect, imageBytes.Length);
             try
             {
@@ -308,7 +369,7 @@ public class FaceRecognitionService : IDisposable
     /// Compares two embeddings using cosine distance (1.0 - cosine similarity).
     /// </summary>
     public (bool IsMatch, double Distance, double Similarity) Compare(
-        float[] emb1, float[] emb2, double threshold = DefaultThreshold)
+        float[] emb1, float[] emb2, double? threshold = null)
     {
         if (emb1 == null || emb2 == null || emb1.Length != emb2.Length)
             return (false, 1.0, 0.0);
@@ -323,7 +384,7 @@ public class FaceRecognitionService : IDisposable
 
         double similarity = dot / (Math.Sqrt(norm1) * Math.Sqrt(norm2) + 1e-10);
         double distance = 1.0 - similarity;
-        bool isMatch = distance <= threshold;
+        bool isMatch = distance <= (threshold ?? MatchThreshold);
         return (isMatch, distance, similarity);
     }
 

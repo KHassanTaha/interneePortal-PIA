@@ -476,3 +476,38 @@ Enforcement is required on **both** paths: client-side before the
 camera opens (REQ-01 acceptance criterion 3), and server-side as
 defence in depth. The error body uses the uniform `{"message": "..."}`
 shape per D-S21.
+
+---
+
+### D-S26 — Face thresholds read from configuration
+
+- **Decision:** `FaceRecognitionService` reads `FaceMatchThreshold` and
+  `SpoofThreshold` from `IConfiguration`, defaulting to 0.58 and 0.60
+  respectively. Hardcoded 0.70 and 0.40 are removed.
+- **Rationale:** The XML comment at `FaceRecognitionService.cs:18` and
+  `appsettings.json` both claimed 0.58; the code hardcoded 0.70. For
+  ArcFace cosine distance, a larger max distance is a looser match — the
+  running code was more permissive than either the doc or the config
+  claimed. That is the wrong direction for a security gate.
+- **Validation (impostor side):** Measured across 2850 pairs from 76
+  approved enrollment embeddings. Minimum impostor distance (excluding
+  the 258/259/260 same-photo cluster) is 0.7099. At 0.70, the nearest
+  impostor clears by 0.0099. At 0.58, the margin widens to 0.1299. The
+  security-side case for tightening is strong.
+- **Validation (self-capture side) — NOT PERFORMED:** A fresh live-human
+  enrollment test was not possible in the development environment. The
+  emulator camera renders a synthetic scene; no real face was available.
+  Stored historical session distances (1484 sessions, worst passing
+  0.2657) could not be trusted as real-face evidence because the seeded
+  enrollments appear synthetic — interns 258/259/260 have embeddings
+  0.07-0.11 apart (same photo enrolled repeatedly), and `PhotoPath` is
+  NULL for all 10 approved enrollment records.
+- **Residual risk:** The self-capture side of the threshold change is
+  unvalidated against real faces. Before any production deployment, a
+  fresh-enrollment regression test on real faces is required. Tracked as
+  a deferred task in `docs/TODO.md`.
+- **Status:** implemented (self-capture validation deferred).
+
+Scope note: `FaceRecognitionService.cs:380` (`bestScore = 0.7f`) is an
+UltraFace detection-confidence floor, not a match or spoof gate, and is
+deliberately **not** changed by this decision.
