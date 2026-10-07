@@ -23,4 +23,14 @@
     <None Include="Models\AI\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+<!-- W4.8 / D-S19: pin vulnerable transitives so NuGet resolves upward.
+       Microsoft.Data.SqlClient 5.1.5 drags in vulnerable transitives and has
+       not been bumped; these are explicit overrides, not new dependencies. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="8.0.1" />
+    <PackageReference Include="System.Text.Json" Version="8.0.6" />
+    <PackageReference Include="Azure.Identity" Version="1.16.0" />
+    <PackageReference Include="Microsoft.Identity.Client" Version="4.90.1" />
+  </ItemGroup>
+
 </Project>
