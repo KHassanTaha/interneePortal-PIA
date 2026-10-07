@@ -1,19 +1,27 @@
-import React, {useRef} from 'react';
-import {View, Modal, PanResponder, Animated, ScrollView, KeyboardAvoidingView, Platform, useWindowDimensions} from 'react-native';
+import React from 'react';
+import {View, Modal, Animated, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, Text, useWindowDimensions} from 'react-native';
 import {useAppTheme} from '../theme';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import ToastHost from './AppToast';
 
-// Bottom-sheet modal with iOS-style drag-to-dismiss.
+// Bottom sheet modal with reliable dismissal affordances.
 //
-// Drop-in for slide-up transparent modals: it renders the backdrop + sheet and a
-// drag handle strip above `children`. Pulling the handle down past the threshold
-// (or flicking down) calls onRequestClose. Content is scrollable by default and
-// capped at 85% of the window height with bottom safe-area padding, so long forms
-// stay reachable even when the keyboard is up. Pass `scrollable={false}` when the
-// child already owns a ScrollView.
+// Android back button (onRequestClose), a visible "Close" button in the grab
+// header row, and tapping the shaded backdrop all dismiss the sheet. Every
+// dismiss control is rendered INSIDE the sheet's scrollable content region:
+// in RN 0.86 (Fabric) on Android, touches that start on the bare chrome strip
+// above a Modal's ScrollView never reach the JS responder system — verified
+// on device with PanResponder, raw responder handlers and TouchableOpacity
+// alike. Rendering the pill + close control as content restored full
+// touchability.
 //
-// Props are forwarded to <Modal>; `overlayStyle`/`sheetStyle` override the default
-// backdrop and sheet look (pass the styles the old Modal already used).
+// The pill is decorative (annotates "drag" behaviour) and the header hints
+// "Pull down or tap ? to close". Content is scrollable by default and capped
+// at 85% of the window height; pass `scrollable={false}` when the child
+// already owns a ScrollView.
+//
+// A ToastHost renders inside the Modal so toasts paint ABOVE this sheet (a
+// root overlay alone would be hidden behind a native Modal).
 
 export default function SwipeableModal({
   children,
@@ -21,37 +29,43 @@ export default function SwipeableModal({
   sheetStyle,
   animationType = 'slide',
   onRequestClose,
+  closeLabel = 'Close',
   scrollable = true,
   ...props
 }) {
   const {colors} = useAppTheme();
   const {height: windowHeight} = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const dy = useRef(new Animated.Value(0)).current;
 
-  const pan = useRef(PanResponder.create({
-    onMoveShouldSetPanResponder: (_e, g) => g.dy > 4 && Math.abs(g.dy) > Math.abs(g.dx),
-    onPanResponderMove: (_e, g) => {
-      dy.setValue(Math.max(0, g.dy));
-    },
-    onPanResponderRelease: (_e, g) => {
-      if (g.dy > 70 || g.vy > 0.7) {
-        if (onRequestClose) onRequestClose();
-      }
-      Animated.spring(dy, {toValue: 0, useNativeDriver: true}).start();
-    },
-    onPanResponderTerminate: () => Animated.spring(dy, {toValue: 0, useNativeDriver: true}).start(),
-  })).current;
+  const header = (
+    <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 12}}>
+      <View style={{flex: 1, alignItems: 'center'}}>
+        <View style={{width: 48, height: 6, borderRadius: 3, backgroundColor: colors.textMuted, opacity: 0.5}} />
+      </View>
+      <TouchableOpacity
+        onPress={onRequestClose}
+        hitSlop={{top: 12, bottom: 12, left: 12, right: 12}}
+        style={{position: 'absolute', right: 0}}>
+        <Text style={{color: colors.primary, fontSize: 16, fontWeight: '600'}}>{closeLabel}</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   const content = scrollable ? (
     <ScrollView
       keyboardShouldPersistTaps="handled"
       style={{maxHeight: windowHeight * 0.85}}
       showsVerticalScrollIndicator={false}>
-      <View style={{paddingBottom: insets.bottom + 16}}>{children}</View>
+      <View>
+        {header}
+        <View style={{paddingBottom: insets.bottom + 16}}>{children}</View>
+      </View>
     </ScrollView>
   ) : (
-    <View style={{paddingBottom: insets.bottom + 16}}>{children}</View>
+    <View>
+      {header}
+      <View style={{paddingBottom: insets.bottom + 16}}>{children}</View>
+    </View>
   );
 
   return (
@@ -59,16 +73,17 @@ export default function SwipeableModal({
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={overlayStyle || {flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end'}}>
-        <Animated.View style={[sheetStyle || {backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24}, {transform: [{translateY: dy}]}]}>
-          <View
-            {...pan.panHandlers}
-            style={{alignItems: 'center', paddingTop: 2, paddingBottom: 10}}
-            hitSlop={{top: 8, bottom: 8, left: 0, right: 0}}>
-            <View style={{width: 44, height: 5, borderRadius: 3, backgroundColor: colors.textMuted, opacity: 0.5}} />
-          </View>
+        <TouchableOpacity
+          onPress={onRequestClose}
+          activeOpacity={1}
+          style={{position: 'absolute', top: 0, left: 0, right: 0, bottom: 0}}
+        />
+        <Animated.View
+          style={[sheetStyle || {backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24}]}>
           {content}
         </Animated.View>
       </KeyboardAvoidingView>
+      <ToastHost />
     </Modal>
   );
 }

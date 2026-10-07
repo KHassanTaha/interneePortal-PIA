@@ -1,13 +1,21 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {Animated, Text, View, TouchableOpacity, StyleSheet, Modal} from 'react-native';
+import {Animated, Text, View, TouchableOpacity, StyleSheet} from 'react-native';
 import {useAppTheme} from '../theme';
 import Icon from './Icon';
 
-let listener = null;
+// Publish-subscribe bus so several ToastHosts (one at the app root, one inside
+// each native Modal/SwipeableModal) can render the same toast simultaneously.
+let listeners = new Set();
 
 export function showToast(message, type = 'info') {
   console.log('[toast]', type, message);
-  if (listener) listener({message, type, id: Date.now() + Math.random()});
+  const event = {message, type, id: Date.now() + Math.random()};
+  listeners.forEach(l => l(event));
+}
+
+function subscribe(listener) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
 }
 
 const typeStyles = {
@@ -21,7 +29,6 @@ export default function ToastHost() {
   const [toast, setToast] = useState(null);
   const opacity = useRef(new Animated.Value(0)).current;
   const timer = useRef(null);
-  const currentId = useRef(null);
 
   const dismiss = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
@@ -29,15 +36,15 @@ export default function ToastHost() {
   }, [opacity]);
 
   useEffect(() => {
-    listener = t => {
+    const onToast = t => {
       if (timer.current) clearTimeout(timer.current);
-      currentId.current = t.id;
       setToast(t);
       Animated.timing(opacity, {toValue: 1, duration: 200, useNativeDriver: true}).start();
       timer.current = setTimeout(dismiss, 4000);
     };
+    const unsubscribe = subscribe(onToast);
     return () => {
-      listener = null;
+      unsubscribe();
       if (timer.current) clearTimeout(timer.current);
     };
   }, [dismiss, opacity]);
@@ -45,36 +52,41 @@ export default function ToastHost() {
   const meta = typeStyles[toast?.type] || typeStyles.info;
   const tint = colors[meta.color];
 
-  // The toast renders inside its own native <Modal> window layer, so it paints
-  // ABOVE any sheet/popup Forms. Each visible toast is a short-lived modal; the
-  // id key guarantees a fresh native layer when a second toast follows quickly.
+  // Plain overlay, NOT a native Modal. A Modal on Android swallows every touch
+  // while a toast is visible (verified on RN 0.86: pointerEvents="box-none" does
+  // not pass touches through a Modal). A normal View overlay with box-none lets
+  // taps reach the screen underneath, so Bug 3 (login toast froze the form) is
+  // resolved. To keep toasts above a sheet/popup, the SAME host is rendered
+  // inside that Modal as well (see SwipeableModal) — there it is again a plain
+  // absolute View, so it never blocks the sheet's own taps either.
   return (
-    <Modal
-      visible={!!toast}
-      transparent
-      animationType="fade"
-      statusBarTranslucent
-      key={currentId.current}
-      onRequestClose={dismiss}>
-      <View pointerEvents="box-none" style={styles.wrap}>
-        {toast && (
-          <Animated.View style={[styles.toast, {backgroundColor: colors.card, borderColor: tint, opacity}]}>
-            <View style={[styles.iconBox, {backgroundColor: tint + '22'}]}>
-              <Icon name={meta.icon} size={16} color={tint} />
-            </View>
-            <Text style={[styles.message, {color: colors.text}]}>{toast.message}</Text>
-            <TouchableOpacity style={styles.closeBtn} onPress={dismiss}>
-              <Icon name="close" size={16} color={colors.textMuted} />
-            </TouchableOpacity>
-          </Animated.View>
-        )}
-      </View>
-    </Modal>
+    <View pointerEvents="box-none" style={styles.wrap}>
+      {toast && (
+        <Animated.View style={[styles.toast, {backgroundColor: colors.card, borderColor: tint, opacity}]}>
+          <View style={[styles.iconBox, {backgroundColor: tint + '22'}]}>
+            <Icon name={meta.icon} size={16} color={tint} />
+          </View>
+          <Text style={[styles.message, {color: colors.text}]}>{toast.message}</Text>
+          <TouchableOpacity style={styles.closeBtn} onPress={dismiss}>
+            <Icon name="close" size={16} color={colors.textMuted} />
+          </TouchableOpacity>
+        </Animated.View>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {position: 'absolute', left: 0, right: 0, bottom: 24, paddingHorizontal: 16, zIndex: 999, elevation: 20},
+  wrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 24,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    zIndex: 999,
+    elevation: 20,
+  },
   toast: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -82,6 +94,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 12,
     borderWidth: 1.5,
+    alignSelf: 'stretch',
     shadowColor: '#000',
     shadowOpacity: 0.25,
     shadowRadius: 12,

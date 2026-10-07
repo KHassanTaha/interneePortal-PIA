@@ -132,8 +132,20 @@ client.interceptors.response.use(
           setTokens(newAccess, newRefresh);
           return newAccess;
         } catch {
+          // The refresh token is dead (revoked/rotated/expired). Clear the
+          // keychain tokens AND reset the persisted redux session, otherwise the
+          // app keeps drawing the dashboard with a rejected token: zeros and an
+          // empty activity log with no error shown. Logging out sends the user
+          // to the login screen instead of a frozen, no-data shell.
           clearTokens();
           await AsyncStorage.multiRemove(['user']);
+          const {store} = require('../store');
+          const {logoutUser} = require('../store/slices/authSlice');
+          const {showToast} = require('../components/AppToast');
+          if (store.getState().auth.isAuthenticated) {
+            showToast('Your session expired. Please sign in again.', 'error');
+            store.dispatch(logoutUser());
+          }
           return null;
         } finally {
           refreshPromise = null;
