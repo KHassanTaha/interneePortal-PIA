@@ -59,3 +59,4 @@ AGENT_HANDOFF.md
 # Face-recognition ONNX weights (250MB+, exceed GitHub's 100MB limit).
 # Fetched during setup — see docs/LAUNCH_GUIDE_LINUX.md §Face models.
 backend/InternSystem.API/Models/AI/*.onnx
+docs/PHASE_2D_PLAN.md
