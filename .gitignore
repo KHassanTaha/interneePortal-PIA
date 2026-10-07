@@ -46,6 +46,9 @@ docs/DECISIONS.md
 docs/REQUIREMENTS.md
 docs/CONTEXT.md
 docs/BLOCKERS.md
+# Phase-1/2 handoff. Lives at the REPO ROOT, not under docs/ — the pattern
+# has no leading slash so it matches at any depth if it is ever moved.
+AGENT_HANDOFF.md
 
 # Stray dumps from malformed shell redirects (e.g. `cmd >--000.ppm`)
 --*.ppm
