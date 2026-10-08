@@ -34,6 +34,20 @@ prevent someone else from marking attendance for an intern, the app proves the i
 All four must pass for attendance to be accepted. The raw photo is **never stored** — only the
 512‑number signature is saved, and only at enrollment time.
 
+> **CORRECTION — 2026-10-06. The paragraph above is wrong; do not
+> implement from it.** Verified against the code: the raw attendance
+> capture **is** persisted, for successful and failed attempts alike, at
+> `AttendanceVerificationController.cs:252`. It is stored under
+> `uploads/faces/{internId}/verify/`, the path is kept in
+> `AttendanceVerificationSessions.VerificationPhotoPath`, copied onto
+> `Attendances.CheckInPhotoPath` / `CheckOutPhotoPath`, and served to the
+> intern and to mentor/admin. Only the *embedding* is enrollment-scoped,
+> as the paragraph says. See `DECISIONS_LOG.md` **D-S23**, which supersedes
+> this text, and `AGENTS.md` §4.4 "Data flow contract" for the corrected
+> wording. FACE-02 in `docs/REQUIREMENTS.md` carries the same stale claim
+> and is marked pending the same reconciliation. Historical text left
+> in place deliberately; add corrections, do not rewrite history.
+
 ---
 
 ## 2. System architecture

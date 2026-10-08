@@ -199,11 +199,21 @@ Attendance is gated by four stacked defences. All four must pass.
    (default 100 m).
 
 **Data flow contract.**
-- The raw photo is never persisted. Only the 512-D embedding is stored, and
-  only at enrollment.
+- The 512-D embedding is derived server-side from the raw capture
+  and stored only at enrollment.
+- The raw attendance capture is retained server-side for **both**
+  successful and failed attempts, for audit review — see D-S23 and
+  REQ-05.
+- Failed-attempt captures are shown to mentor/admin only, not to
+  the intern.
 - The mobile app forwards a base64 JPEG; the server re-extracts the embedding
   on every verification. The client never computes embeddings.
 - The three ONNX models live server-side under `Models/AI/`.
+
+**The geofence gate is fail-closed.** The geofence gate reads coordinates
+from the intern's department only. It does not fall back to hardcoded
+values. Missing or invalid department coordinates cause the gate to fail
+closed with `MISSING_GEOFENCE_CONFIG`. See REQ-01 and D-S25.
 
 **Model acquisition is a first-run prerequisite.** The ONNX files are not
 committed to the repository. `docs/LAUNCH_GUIDE_LINUX.md` and
@@ -250,7 +260,7 @@ section:
 
 ### 4.6 The document-and-face gate
 
-CNIC and University ID must both be **approved** (and not withdrawn)
+CNIC and Resume must both be **approved** (and not withdrawn)
 **AND** the intern must have an enrolled face before ANY official
 document issuance (gate pass / ID card / certificate). Enforced on
 admin + mentor approve endpoints (single and batch) and face
@@ -258,8 +268,17 @@ enrollment via `DocumentGateExtensions.OfficialDocsApprovedAsync`.
 
 Batch approve reports skips with a reason that distinguishes the two
 failure classes:
-- `skippedDocsNotApproved` — CNIC or University ID missing/withdrawn.
-- `skippedFaceNotEnrolled` — documents OK, face not enrolled.
+- `skippedDocsNotApproved` — CNIC or Resume missing/withdrawn.
+- `skippedFaceNotApproved` — documents OK, face not enrolled.
+
+Corrected 2026-10-06 — earlier text named "University ID"; the
+enforced documents are CNIC and Resume per D-S16a. Verified against
+`DocumentGateExtensions.cs:20-21`
+(`UploadDocumentType.Cnic && UploadDocumentType.Resume`) and the batch
+counters at `AdminController.cs:1562-1569` and
+`MentorController.cs:943-950`. The earlier token
+`skippedFaceNotEnrolled` did not exist in the code either; the live
+identifier is `skippedFaceNotApproved`.
 
 ### 4.7 Attendance scoring contract (PLAN.md §1, locked)
 
@@ -587,6 +606,9 @@ When the owner announces a demo:
 
 ### 10.6 Verification discipline
 
+- **Prefer `grep -rnE` over `rg`.** `rg` is not installed on the owner's
+  machine. `grep -rnE` with the same pattern is the default. Do not
+  install new tools as a side effect of a task.
 - Copy exact commands you ran into the launch guide. Do not invent commands.
 - Never write "should work". Only "verified on <OS> on <date>".
 - **A test may not override production sizing.** If a test needs a different
