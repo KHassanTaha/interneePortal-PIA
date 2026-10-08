@@ -26,7 +26,7 @@ identifiers. Folding them in is tracked separately and is not part of this pass.
 
 | ID | Title | Priority | Status |
 |----|-------|----------|--------|
-| REQ-01 | Geofence fail-open bug (coordinates missing → attendance proceeds) | Critical | `[~]` implemented 2026-10-08 — fail-closed both paths; AC4 waits on REQ-05 |
+| REQ-01 | Geofence fail-open bug (coordinates missing → attendance proceeds) | Critical | `[x]` verified 2026-10-08 — fail-closed both paths; §18 on-device verified; AC4 waits on REQ-05 |
 | REQ-02 | Activity log tap does not open correctly on admin dashboard | High | `[NEEDS-ANSWER]` — Q4 |
 | REQ-03 | Swipe-to-dismiss does not work | Medium | `[NEEDS-ANSWER]` — Q5 |
 | REQ-04 | Face-enrollment photo reused for ID card and profile avatar | Medium | `[PARTIAL]` — Q6 answered (image on disk, full + thumb); Q7 open |
@@ -45,7 +45,7 @@ identifiers. Folding them in is tracked separately and is not part of this pass.
 
 ## REQ-01 — Geofence fail-open bug (coordinates missing → attendance still proceeds)
 
-**Status:** `[~] implemented 2026-10-08 — fail-closed on both paths. AC1–AC3 done; AC4 waits on REQ-05.`
+**Status:** `[x] verified 2026-10-08 — fail-closed on both paths; §18 on-device verified on emulator-5554 (FR-REQ-01 in PROGRESS.md). AC1–AC3 done; AC4 waits on REQ-05.`
 **Priority:** Critical (security)
 **Category:** Security / correctness
 **Overlaps:** `FACE_RECOGNITION_AND_SYSTEM_GUIDE.md` §2 gate 4 (server-side GPS

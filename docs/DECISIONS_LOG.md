@@ -494,7 +494,28 @@ REQ-05 §5.3 and Q9b, still open.
 - **Corrects:** The behaviour the owner observed — deleting
   department coordinates did not block attendance, because the
   fallback silently substituted a Karachi centre.
-- **Status:** implemented 2026-10-08 (REQ-01).
+- **Status:** implemented and verified 2026-10-08 (REQ-01, §18).
+
+#### §18 verification record 2026-10-08 (REQ-01)
+
+- **Executed on emulator-5554.** See `docs/PROGRESS.md` FR-REQ-01
+  evidence line and `logs/screenshots/req-01-*.png`
+  (`req-01-coords-null-button-disabled.png`,
+  `req-01-coords-restored-button-enabled.png`,
+  `req-01-camera-opened.png`).
+- Re-nulling the department's coordinates → "This department does not
+  have coordinates configured. Contact an administrator." on the
+  Attendance screen, button `enabled="false" clickable="false"`; a bypass
+  tap did not open the camera, start a session, or toast.
+- Direct `POST /api/intern/attendance` (no client, Bearer token) while
+  coords are NULL → **HTTP 400** with the missing-config message.
+  (The owner's example route `/api/attendance/mark` does not exist; the
+  authoritative legacy route is `POST /api/intern/attendance`.)
+- Restoring coords (`24.86, 67.01`) → button `enabled="true"`, tapping it
+  opened the camera permission prompt, then the location prompt, then
+  the live-camera **Step 1: Face Verification** stage.
+- **DB left restored;** the far-coords test row (attendance 7230) was
+  deleted.
 
 #### Implementation record 2026-10-08 (REQ-01)
 
@@ -533,7 +554,8 @@ REQ-05 §5.3 and Q9b, still open.
   the `100.0` default; no decision taken.
 - **Acceptance criteria 1–3 covered by tests; criterion 4 (audit-log
   write) belongs to REQ-05 and is not addressed here.** On-device §18 tap-
-  sequence verification of the pre-camera block is a documented follow-up.
+  sequence verification of the pre-camera block is **done** — see the
+  §18 verification record above.
 
 #### Sites to change (grep evidence, 2026-10-06)
 
