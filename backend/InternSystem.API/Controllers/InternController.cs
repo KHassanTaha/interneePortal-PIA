@@ -21,11 +21,12 @@ public class InternController : ControllerBase
     private readonly GeoFenceService _geo;
     private readonly AttendanceScoringService _scoring;
     private readonly NotificationService _notifications;
+    private readonly TransferStateMachine _transfers;
     private readonly FaceRecognitionService _face;
 
-    public InternController(AppDbContext db, FileService files, GeoFenceService geo, AttendanceScoringService scoring, NotificationService notifications, FaceRecognitionService face)
+    public InternController(AppDbContext db, FileService files, GeoFenceService geo, AttendanceScoringService scoring, NotificationService notifications, TransferStateMachine transfers, FaceRecognitionService face)
     {
-        _db = db; _files = files; _geo = geo; _scoring = scoring; _notifications = notifications; _face = face;
+        _db = db; _files = files; _geo = geo; _scoring = scoring; _notifications = notifications; _transfers = transfers; _face = face;
     }
 
     private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -1226,32 +1227,8 @@ public class InternController : ControllerBase
         var intern = await GetCurrentIntern();
         if (intern == null) return NotFound();
 
-        var transfer = await _db.InternTransferRequests
-            .FirstOrDefaultAsync(t => t.Id == id && t.InternId == intern.Id);
-        if (transfer == null) return NotFound();
-        if (transfer.Status != InternTransferStatus.Endorsed)
-            return BadRequest(new { message = "This transfer is not awaiting your acceptance" });
-
-        transfer.Status = InternTransferStatus.InternAccepted;
-        transfer.InternAcceptedAt = DateTime.Now;
-
-        _db.ActivityLogs.Add(new ActivityLog
-        {
-            LogType = ActivityLogType.InternTransferAccepted,
-            Description = $"Intern '{intern.FullName}' accepted their transfer to mentor '{transfer.ToMentorId}'",
-            PerformedByUserId = CurrentUserId,
-            TargetInternId = intern.Id,
-            DepartmentId = intern.DepartmentId
-        });
-
-        await _db.SaveChangesAsync();
-
-        var toMentor = await _db.Mentors.FirstOrDefaultAsync(m => m.Id == transfer.ToMentorId);
-        if (toMentor != null)
-            await _notifications.NotifyAsync(toMentor.UserId, "Intern transfer accepted",
-                $"{intern.FullName} accepted the transfer. Finalise it to move them to your roster.", NotificationType.Transfer);
-
-        return Ok(new { message = "Transfer accepted" });
+        var actor = new TransferActor(CurrentUserId, UserRole.Intern, InternId: intern.Id);
+        return TransferResponse(await _transfers.InternAcceptAsync(id, actor));
     }
 
     [HttpPost("transfers/{id}/reject")]
@@ -1261,33 +1238,22 @@ public class InternController : ControllerBase
         var intern = await GetCurrentIntern();
         if (intern == null) return NotFound();
 
-        var transfer = await _db.InternTransferRequests
-            .FirstOrDefaultAsync(t => t.Id == id && t.InternId == intern.Id);
-        if (transfer == null) return NotFound();
-        if (transfer.Status != InternTransferStatus.Endorsed)
-            return BadRequest(new { message = "Transfer is not awaiting your acceptance" });
-
-        transfer.Status = InternTransferStatus.Rejected;
-        transfer.RejectionReason = req.Reason;
-
-        _db.ActivityLogs.Add(new ActivityLog
-        {
-            LogType = ActivityLogType.InternTransferRejected,
-            Description = $"Intern '{intern.FullName}' rejected their transfer: {req.Reason}",
-            PerformedByUserId = CurrentUserId,
-            TargetInternId = intern.Id,
-            DepartmentId = intern.DepartmentId
-        });
-
-        await _db.SaveChangesAsync();
-
-        var initiatorMentor = await _db.Mentors.FirstOrDefaultAsync(m => m.Id == transfer.FromMentorId);
-        if (initiatorMentor != null)
-            await _notifications.NotifyAsync(initiatorMentor.UserId, "Intern transfer rejected",
-                $"{intern.FullName} rejected the transfer", NotificationType.Transfer);
-
-        return Ok(new { message = "Transfer rejected" });
+        var actor = new TransferActor(CurrentUserId, UserRole.Intern, InternId: intern.Id);
+        return TransferResponse(await _transfers.InternRejectAsync(id, actor, req.Reason));
     }
+
+
+    /// <summary>
+    /// Maps a state-machine outcome onto HTTP. A lost CAS race is 409 STALE_STATE
+    /// (D-12/D-S21), not 400: the request was well-formed, the row simply moved on.
+    /// </summary>
+    private IActionResult TransferResponse(TransferResult result) => result.Outcome switch
+    {
+        TransferOutcome.Applied => Ok(new { message = result.Message }),
+        TransferOutcome.Conflict => StatusCode(StatusCodes.Status409Conflict, new { message = result.Message }),
+        TransferOutcome.Forbidden => StatusCode(StatusCodes.Status403Forbidden, new { message = result.Message }),
+        _ => NotFound()
+    };
 
     // ─── Intern Shift Changes (intern side) ────────────────────────────────
     [HttpGet("shift-change")]

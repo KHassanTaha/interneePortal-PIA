@@ -156,6 +156,7 @@ builder.Services.AddSingleton(sp => new FaceRecognitionService(
     Path.Combine(builder.Environment.ContentRootPath, "Models", "AI")));
 builder.Services.AddScoped<AttendanceScoringService>();
 builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<TransferStateMachine>();
 builder.Services.AddScoped<IdempotencyService>();
 
 // ─── App ────────────────────────────────────────────────────────────────────

@@ -178,7 +178,7 @@ survives doc drift:
 | D-09 | Document upload binaries ARE included in the queue. The picked `content://`/`file://` file is copied into the app cache dir via `react-native-blob-util` at enqueue time; replay rebuilds `FormData` from the cached localPath. | D-09 |
 | D-10 | Sync failures surface as toast AND as in-app local notifications merged into the existing Notifications screen + unread badge. No OS system-tray dependency. | D-10 |
 | D-11 | Idempotency keys on ALL queued/replayable writes. Server stores processed keys per user (7-day TTL); duplicate key returns the stored response. Attendance + auth excluded. | D-11 |
-| D-12 | Race-condition handling: atomic CAS transitions on approve/reject/finalize; rows-affected 0 → `409 STALE_STATE`. Snapshot at enqueue `{entityType, entityId, expectedStatus, scope:{internId, mentorId, deptId}}`; precondition check at replay; mismatch → `conflict`, never replay. Outbox is FIFO per entityKey. | D-12 |
+| D-12 | Race-condition handling: atomic CAS transitions on approve/reject/finalize across all domain-critical state machines (transfers, document approvals, face enrollment, certificate issuance); rows-affected 0 → `409 STALE_STATE`. Transfer flows routed through CAS via D-S24. Snapshot at enqueue `{entityType, entityId, expectedStatus, scope:{internId, mentorId, deptId}}`; precondition check at replay; mismatch → `conflict`, never replay. Outbox is FIFO per entityKey. | D-12 |
 | D-13 | Reuse existing fields (`Status`, `WithdrawnAt`, `ApprovedAt`) as the optimistic-lock predicate. No new `Version` column. | D-13 |
 
 **If you add an endpoint that can be written to, you must classify it in

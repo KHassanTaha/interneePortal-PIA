@@ -21,16 +21,18 @@ public class AdminController : ControllerBase
     private readonly PdfService _pdf;
     private readonly AttendanceScoringService _scoring;
     private readonly NotificationService _notifications;
+    private readonly TransferStateMachine _transfers;
     private readonly EmailService _email;
     private readonly InternSerialService _serials;
 
-    public AdminController(AppDbContext db, FileService files, PdfService pdf, AttendanceScoringService scoring, NotificationService notifications, EmailService email, InternSerialService serials)
+    public AdminController(AppDbContext db, FileService files, PdfService pdf, AttendanceScoringService scoring, NotificationService notifications, TransferStateMachine transfers, EmailService email, InternSerialService serials)
     {
         _db = db;
         _files = files;
         _pdf = pdf;
         _scoring = scoring;
         _notifications = notifications;
+        _transfers = transfers;
         _email = email;
         _serials = serials;
     }
@@ -2280,6 +2282,19 @@ a.FaceVerified,
         return Ok(new { message = "Transfer updated" });
     }
 
+
+    /// <summary>
+    /// Maps a state-machine outcome onto HTTP. A lost CAS race is 409 STALE_STATE
+    /// (D-12/D-S21), not 400: the request was well-formed, the row simply moved on.
+    /// </summary>
+    private IActionResult TransferResponse(TransferResult result) => result.Outcome switch
+    {
+        TransferOutcome.Applied => Ok(new { message = result.Message }),
+        TransferOutcome.Conflict => StatusCode(StatusCodes.Status409Conflict, new { message = result.Message }),
+        TransferOutcome.Forbidden => StatusCode(StatusCodes.Status403Forbidden, new { message = result.Message }),
+        _ => NotFound()
+    };
+
     // Flow A: admin initiates a transfer of an intern to a specific mentor
     [HttpPost("interns/{id}/transfer")]
     public async Task<IActionResult> InitiateInternTransfer(int id, [FromBody] AdminInitiateInternTransferRequest req)
@@ -2329,65 +2344,16 @@ a.FaceVerified,
     [HttpPost("transfers/{id}/endorse")]
     public async Task<IActionResult> EndorseInternTransfer(int id)
     {
-        var transfer = await _db.InternTransferRequests
-            .FirstOrDefaultAsync(t => t.Id == id && t.InitiatedBy == InternTransferInitiator.Mentor);
-        if (transfer == null) return NotFound();
-        if (transfer.Status != InternTransferStatus.Pending)
-            return BadRequest(new { message = "Only pending transfers can be endorsed" });
-
-        transfer.Status = InternTransferStatus.Endorsed;
-        transfer.EndorsedByUserId = CurrentUserId;
-        transfer.EndorsedAt = DateTime.Now;
-
-        _db.ActivityLogs.Add(new ActivityLog
-        {
-            LogType = ActivityLogType.InternTransferInitiated,
-            Description = $"Admin endorsed intern transfer #{transfer.Id} (intern #{transfer.InternId})",
-            PerformedByUserId = CurrentUserId,
-            TargetInternId = transfer.InternId
-        });
-
-        await _db.SaveChangesAsync();
-
-        var intern = await _db.Interns.Include(i => i.User).FirstOrDefaultAsync(i => i.Id == transfer.InternId);
-        if (intern != null)
-            await _notifications.NotifyAsync(intern.UserId, "Intern transfer endorsed",
-                "Your transfer has been endorsed by the admin — please accept or reject it", NotificationType.Transfer);
-
-        return Ok(new { message = "Transfer endorsed" });
+        var actor = new TransferActor(CurrentUserId, UserRole.Admin);
+        return TransferResponse(await _transfers.AdminEndorseAsync(id, actor));
     }
 
     [Idempotent]
     [HttpPost("transfers/{id}/reject")]
     public async Task<IActionResult> RejectInternTransfer(int id, [FromBody] RejectInternTransferRequest req)
     {
-        var transfer = await _db.InternTransferRequests.FirstOrDefaultAsync(t => t.Id == id);
-        if (transfer == null) return NotFound();
-        if (transfer.Status != InternTransferStatus.Pending)
-            return BadRequest(new { message = "Only pending transfers can be rejected" });
-
-        transfer.Status = InternTransferStatus.Rejected;
-        transfer.RejectionReason = req.Reason;
-
-        var transferIntern = await _db.Interns.FirstOrDefaultAsync(i => i.Id == transfer.InternId);
-
-        _db.ActivityLogs.Add(new ActivityLog
-        {
-            LogType = ActivityLogType.InternTransferRejected,
-            Description = $"Admin rejected intern transfer #{transfer.Id}: {req.Reason}",
-            PerformedByUserId = CurrentUserId,
-            TargetInternId = transfer.InternId
-        });
-
-        await _db.SaveChangesAsync();
-        if (transferIntern != null)
-            await _notifications.NotifyAsync(
-                transferIntern.UserId,
-                "Transfer request rejected",
-                $"Your transfer request was rejected by the admin.",
-                NotificationType.Transfer,
-                "InternTransferRequest", (int)transfer.Id, CurrentUserId, transfer.InternId);
-        return Ok(new { message = "Transfer rejected" });
+        var actor = new TransferActor(CurrentUserId, UserRole.Admin);
+        return TransferResponse(await _transfers.AdminRejectAsync(id, actor, req.Reason));
     }
 
     // ─── Leave applications (all interns) ─────────────────────────────────

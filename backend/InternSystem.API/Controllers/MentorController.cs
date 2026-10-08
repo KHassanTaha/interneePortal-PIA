@@ -22,12 +22,13 @@ public class MentorController : ControllerBase
     private readonly GeoFenceService _geo;
     private readonly AttendanceScoringService _scoring;
     private readonly NotificationService _notifications;
+    private readonly TransferStateMachine _transfers;
     private readonly EmailService _email;
     private readonly InternSerialService _serials;
 
-    public MentorController(AppDbContext db, FileService files, PdfService pdf, GeoFenceService geo, AttendanceScoringService scoring, NotificationService notifications, EmailService email, InternSerialService serials)
+    public MentorController(AppDbContext db, FileService files, PdfService pdf, GeoFenceService geo, AttendanceScoringService scoring, NotificationService notifications, TransferStateMachine transfers, EmailService email, InternSerialService serials)
     {
-        _db = db; _files = files; _pdf = pdf; _geo = geo; _scoring = scoring; _notifications = notifications;
+        _db = db; _files = files; _pdf = pdf; _geo = geo; _scoring = scoring; _notifications = notifications; _transfers = transfers;
         _email = email; _serials = serials;
     }
 
@@ -2044,33 +2045,8 @@ public class MentorController : ControllerBase
         var mentor = await GetCurrentMentor();
         if (mentor == null) return NotFound();
 
-        var transfer = await _db.InternTransferRequests
-            .FirstOrDefaultAsync(t => t.Id == id && t.InitiatedBy == InternTransferInitiator.Admin && t.FromMentorId == mentor.Id);
-        if (transfer == null) return NotFound();
-        if (transfer.Status != InternTransferStatus.Pending)
-            return BadRequest(new { message = "Only pending transfers can be endorsed" });
-
-        transfer.Status = InternTransferStatus.Endorsed;
-        transfer.EndorsedByUserId = CurrentUserId;
-        transfer.EndorsedAt = DateTime.Now;
-
-        _db.ActivityLogs.Add(new ActivityLog
-        {
-            LogType = ActivityLogType.InternTransferInitiated,
-            Description = $"Mentor '{mentor.FullName}' endorsed intern transfer #{transfer.Id}",
-            PerformedByUserId = CurrentUserId,
-            TargetInternId = transfer.InternId,
-            DepartmentId = mentor.DepartmentId
-        });
-
-        await _db.SaveChangesAsync();
-
-        var intern = await _db.Interns.FirstOrDefaultAsync(i => i.Id == transfer.InternId);
-        if (intern != null)
-            await _notifications.NotifyAsync(intern.UserId, "Intern transfer pending",
-                $"A transfer was endorsed by {mentor.FullName} — awaiting your acceptance", NotificationType.Transfer);
-
-        return Ok(new { message = "Transfer endorsed" });
+        var actor = new TransferActor(CurrentUserId, UserRole.Mentor, mentor.Id);
+        return TransferResponse(await _transfers.MentorEndorseAsync(id, actor));
     }
 
     [HttpPost("transfers/{id}/reject")]
@@ -2079,26 +2055,20 @@ public class MentorController : ControllerBase
         var mentor = await GetCurrentMentor();
         if (mentor == null) return NotFound();
 
-        var transfer = await _db.InternTransferRequests
-            .FirstOrDefaultAsync(t => t.Id == id && (t.FromMentorId == mentor.Id || t.ToMentorId == mentor.Id));
-        if (transfer == null) return NotFound();
-        if (transfer.Status != InternTransferStatus.Pending)
-            return BadRequest(new { message = "Only pending transfers can be rejected" });
+        var actor = new TransferActor(CurrentUserId, UserRole.Mentor, mentor.Id);
+        return TransferResponse(await _transfers.MentorRejectAsync(id, actor, req.Reason));
+    }
 
-        transfer.Status = InternTransferStatus.Rejected;
-        transfer.RejectionReason = req.Reason;
+    // The receiving mentor may refuse a transfer the intern has already accepted.
+    [HttpPost("transfers/{id}/refuse")]
+    [Idempotent]
+    public async Task<IActionResult> RefuseInternTransfer(int id, [FromBody] RejectInternTransferRequest req)
+    {
+        var mentor = await GetCurrentMentor();
+        if (mentor == null) return NotFound();
 
-        _db.ActivityLogs.Add(new ActivityLog
-        {
-            LogType = ActivityLogType.InternTransferRejected,
-            Description = $"Mentor '{mentor.FullName}' rejected intern transfer #{transfer.Id}: {req.Reason}",
-            PerformedByUserId = CurrentUserId,
-            TargetInternId = transfer.InternId,
-            DepartmentId = mentor.DepartmentId
-        });
-
-        await _db.SaveChangesAsync();
-        return Ok(new { message = "Transfer rejected" });
+        var actor = new TransferActor(CurrentUserId, UserRole.Mentor, mentor.Id);
+        return TransferResponse(await _transfers.ToMentorRejectAsync(id, actor, req.Reason));
     }
 
     // A stakeholder raises a non-terminal objection, notifying the other parties
@@ -2151,36 +2121,22 @@ public class MentorController : ControllerBase
         var mentor = await GetCurrentMentor();
         if (mentor == null) return NotFound();
 
-        var transfer = await _db.InternTransferRequests
-            .Include(t => t.ToMentor)
-            .FirstOrDefaultAsync(t => t.Id == id && t.ToMentorId == mentor.Id);
-        if (transfer == null) return NotFound();
-        if (transfer.Status != InternTransferStatus.InternAccepted)
-            return BadRequest(new { message = "Only intern-accepted transfers can be finalised" });
-
-        var intern = await _db.Interns.FirstOrDefaultAsync(i => i.Id == transfer.InternId);
-        if (intern == null) return NotFound();
-
-        intern.MentorId = transfer.ToMentorId;
-        intern.DepartmentId = transfer.ToMentor.DepartmentId;
-        transfer.Status = InternTransferStatus.Finalised;
-        transfer.FinalisedByUserId = CurrentUserId;
-        transfer.FinalisedAt = DateTime.Now;
-
-        _db.ActivityLogs.Add(new ActivityLog
-        {
-            LogType = ActivityLogType.InternTransferFinalised,
-            Description = $"Mentor '{mentor.FullName}' finalised intern transfer #{transfer.Id}",
-            PerformedByUserId = CurrentUserId,
-            TargetInternId = intern.Id,
-            DepartmentId = transfer.ToMentor.DepartmentId
-        });
-
-        await _db.SaveChangesAsync();
-        await _notifications.NotifyAsync(intern.UserId, "Intern transfer finalised",
-            $"Your transfer to {transfer.ToMentor.FullName} is complete", NotificationType.Transfer);
-        return Ok(new { message = "Transfer finalised" });
+        var actor = new TransferActor(CurrentUserId, UserRole.Mentor, mentor.Id);
+        return TransferResponse(await _transfers.FinaliseAsync(id, actor));
     }
+
+
+    /// <summary>
+    /// Maps a state-machine outcome onto HTTP. A lost CAS race is 409 STALE_STATE
+    /// (D-12/D-S21), not 400: the request was well-formed, the row simply moved on.
+    /// </summary>
+    private IActionResult TransferResponse(TransferResult result) => result.Outcome switch
+    {
+        TransferOutcome.Applied => Ok(new { message = result.Message }),
+        TransferOutcome.Conflict => StatusCode(StatusCodes.Status409Conflict, new { message = result.Message }),
+        TransferOutcome.Forbidden => StatusCode(StatusCodes.Status403Forbidden, new { message = result.Message }),
+        _ => NotFound()
+    };
 
     // ─── Mentor Department Transfers ──────────────────────────────────────
     [HttpGet("transfers")]

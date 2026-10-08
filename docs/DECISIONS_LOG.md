@@ -428,6 +428,33 @@ REQ-05 §5.3 and Q9b, still open.
 
 ---
 
+### D-S24 — Critical state machines route through CAS; tests must exercise the production path, not a reimplementation
+
+- **Decision:** Every state machine that transitions a
+  domain-critical record (transfers, document approvals, face
+  enrollment, certificate issuance) routes its transitions
+  through `StateTransitions.TryUpdateAsync`. Controllers hold no
+  inline read-modify-write status logic.
+- **Rationale:** D-12 required CAS for single-winner transitions,
+  but the transfer flow was never migrated. The CAS test suite
+  passed because it exercised `StateTransitions` directly —
+  production transfers did not call it. A green test on an
+  unused code path is worse than no test: it produces false
+  confidence. This decision makes the code and the tests exercise
+  the same path.
+- **Corrects:** AGENTS.md §4.3 D-12 row, which implied CAS
+  covered all state transitions. It did not cover transfers until
+  this refactor.
+- **Status:** implemented 2026-10-06. `TransferStateMachine` extracted to
+  `InternSystem.Infrastructure/Services/`; all eight transfer transition
+  call sites in the three controllers are thin wrappers; a lost race now
+  returns 409 STALE_STATE. Also added the missing `InternAccepted →
+  Rejected` path (the receiving mentor had no refusal route once the
+  intern accepted) and an explicit role guard on finalise, replacing the
+  incidental `GetCurrentMentor() == null` → 404 check.
+
+---
+
 ### D-S25 — Geofence gate reads department coordinates only; fails closed when absent
 
 - **Decision:** The attendance geofence reads
@@ -511,3 +538,41 @@ shape per D-S21.
 Scope note: `FaceRecognitionService.cs:380` (`bestScore = 0.7f`) is an
 UltraFace detection-confidence floor, not a match or spoof gate, and is
 deliberately **not** changed by this decision.
+
+---
+
+### D-S27 — SQL Server test provider catches defects InMemory hides
+
+- **Decision:** The integration test project uses real SQL Server
+  (ephemeral per-run database). Do not propose InMemory as a
+  substitute for any test that touches a DbContext.
+- **Rationale:** Across the W2 test work, SQL Server caught four
+  distinct classes of defect that InMemory would have hidden:
+  (1) IDENTITY column assignment, (2) FK violations from loose
+  seed inserts, (3) enum-to-raw-SQL coercion (nvarchar column
+  received an int), (4) a foreign-key type confusion where a
+  Mentor id was written into a Department column and passed only
+  because ids coincidentally overlapped. Each was a real
+  production defect, not a test setup problem.
+- **Constraint:** Any new test project that touches a DbContext
+  must use the shared SQL Server fixture. InMemory is not an
+  acceptable provider for this codebase.
+- **Status:** implemented.
+
+### D-S28 — Test fixture reads FK dependencies from the schema
+
+- **Decision:** The integration test fixture's `ResetAsync()`
+  discovers child tables and their FK ordering by querying
+  `sys.foreign_key_columns` at reset time. It does not
+  hand-maintain a table list.
+- **Rationale:** A hand-maintained list drifts as new tables are
+  added. The reset then fails or silently leaves orphan rows,
+  producing test failures that look unrelated to the schema
+  change. Reading the dependencies from the schema means the
+  fixture self-maintains.
+- **Impact:** A new table with FKs to existing tables is handled
+  automatically. No fixture edit required.
+- **Status:** implemented 2026-10-06. Reset reads the FK graph and
+  deletes in descending dependency depth. This replaces a hard-coded
+  14-table list, which broke the moment the transfer state machine
+  began writing `ActivityLog` rows (`FK_ActivityLogs_Interns_TargetInternId`).
