@@ -494,7 +494,46 @@ REQ-05 §5.3 and Q9b, still open.
 - **Corrects:** The behaviour the owner observed — deleting
   department coordinates did not block attendance, because the
   fallback silently substituted a Karachi centre.
-- **Status:** to implement (REQ-01).
+- **Status:** implemented 2026-10-08 (REQ-01).
+
+#### Implementation record 2026-10-08 (REQ-01)
+
+- **Decision extracted to `GeoFenceService`.** New
+  `HasValidCoordinates(Department)` + `EvaluateGeofence(Department, lat, lon)`
+  return a `GeoFenceResult` (ConfigValid / InRange / DistanceMeters /
+  AllowedRadiusMeters / Message). Both attendance controllers now call
+  `EvaluateGeofence` and map the verdict to HTTP; the decision logic is
+  unit-tested directly (controllers need a live `FaceRecognitionService`
+  and `Program`'s unguarded `Database.Migrate()` blocks
+  `WebApplicationFactory<Program>` — W2.9, same seam as
+  `FaceEnrollmentMirrorTests`).
+- **All four hardcoded-fallback sites removed.** `StartSession` and
+  `StartCheckOutSession` responses (AttendanceVerificationController)
+  now return the department's `Latitude`/`Longitude` only — nullable, no
+  intern-row preference, no hardcoded pair. `VerifyLocation` and
+  `InternController.MarkAttendance` fail closed with HTTP 400
+  `{"message": ...}` (D-S21 shape) when `HasValidCoordinates` is false.
+- **Intern-row coordinates removed from the geofence chain.** Grep
+  evidence: `24\.894995|67\.152182|24\.9065|67\.1608` → 0 matches in
+  `backend/InternSystem.API/Controllers/*.cs`; no
+  `Intern(s){.Latitude/.Longitude}` reads remain in the geofence paths.
+  `Interns.Latitude/Longitude` are retained on the entity; the earlier
+  orphan-inventory concern (§sites table) is satisfied — the only other
+  consumers are GPS-fix writes into attendance rows and the department
+  CRUD surface.
+- **Client pre-camera gate (criterion 3).** `GET /intern/profile` now
+  returns `departmentLatitude`/`departmentLongitude` (additive). The
+  Attendance screen derives a `geofenceUnavailable` flag from it on focus
+  (D-01 cached), disables the "Mark Attendance" button with the missing-
+  config reason (§16.3), and the start/checkout flows re-check the start
+  response before the camera — the camera never opens when coordinates
+  are missing. Shared helpers in `src/utils/geoUtils.js`, message
+  identical to the server constant.
+- **Radius open question unchanged.** A null `RadiusMeters` still uses
+  the `100.0` default; no decision taken.
+- **Acceptance criteria 1–3 covered by tests; criterion 4 (audit-log
+  write) belongs to REQ-05 and is not addressed here.** On-device §18 tap-
+  sequence verification of the pre-camera block is a documented follow-up.
 
 #### Sites to change (grep evidence, 2026-10-06)
 
