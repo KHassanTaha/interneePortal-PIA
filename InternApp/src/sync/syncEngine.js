@@ -5,7 +5,7 @@ import {revalidateRecent, clearUserCache} from '../api/cache';
 import {setOnline, setItems, upsertItem, removeItem, setLastSyncAt, addLocalNotification} from '../store/slices/syncSlice';
 import {showToast} from '../components/AppToast';
 
-const MAX_TRANSIENT = 8;
+export const MAX_TRANSIENT = 8;
 let storeRef = null;
 let initialized = false;
 let draining = false;
@@ -118,6 +118,70 @@ async function sendItem(item) {
   });
 }
 
+/**
+ * Pure classifier for a failed item send. Mirrors drain()'s error handling
+ * exactly so the retry/terminal policies are testable in isolation.
+ * @param {Error & {response?: {status?: number, data?: {code?: string, message?: string}}}} err
+ * @param {number} tries retry count on the item before this attempt
+ * @returns {{outcome: 'conflict'|'terminal'|'transient', reason: string|null,
+ *            nextTries: number, toast: string|null}}
+ *   outcome 'conflict' → stale-state rejection (HTTP 409 or STALE_STATE code);
+ *   'terminal' → permanently failed (any 4xx, or transient retries exhausted);
+ *   'transient' → network/5xx, item stays queued for the next drain.
+ *   reason is what drain() stores on item.error; toast is the notify() body
+ *   (null = no toast). nextTries reproduces the current tries accounting,
+ *   including the 4xx and transient branches both incrementing.
+ */
+// `reason` populates item.error (internal diagnostics);
+// `toast` populates the user-facing notification. The cap case
+// uses different strings for each — preserved from the original
+// inline block — so the return shape carries both.
+export function classifySendError(err, tries = 0) {
+  const status = err?.response?.status;
+  const data = err?.response?.data;
+
+  if (status === 409 || data?.code === 'STALE_STATE') {
+    return {
+      outcome: 'conflict',
+      reason: data?.message || 'Entity state changed; someone else may have acted on it.',
+      nextTries: tries,
+      toast: data?.message || 'Entity state changed; someone else may have acted on it.',
+    };
+  }
+
+  if (status && status >= 400 && status < 500) {
+    return {
+      outcome: 'terminal',
+      reason: data?.message || `Server rejected (HTTP ${status})`,
+      nextTries: tries + 1,
+      toast: data?.message || `Server rejected (HTTP ${status})`,
+    };
+  }
+
+  const nextTries = tries + 1;
+  if (nextTries > MAX_TRANSIENT) {
+    return {
+      outcome: 'terminal',
+      reason: 'Kept failing after multiple retries.',
+      nextTries,
+      toast: 'still not synced.',
+    };
+  }
+  return {outcome: 'transient', reason: null, nextTries, toast: null};
+}
+
+/**
+ * Pure FIFO ordering for the outbox, oldest first. Returns a copy and never
+ * mutates its input. JS sort is stable (ES2019), so items sharing an
+ * entityKey keep their enqueue order and equal timestamps keep input order.
+ * Per-entity blocking during a drain pass is applied by drain(), not here.
+ * @param {Array<{createdAt: number}>} items
+ * @returns {Array<{createdAt: number}>} copy sorted ascending by createdAt
+ */
+export function sortOutboxFifo(items) {
+  return items.slice().sort((a, b) => a.createdAt - b.createdAt);
+}
+
 // FIFO drain. For items sharing an entityKey, only the oldest is eligible:
 // later ops on the same entity wait for the earlier one to settle.
 async function drain() {
@@ -140,9 +204,7 @@ async function drain() {
 
     // block later ops on entities whose earlier op is still unsettled
     const blockedEntities = new Set();
-    const ordered = items
-      .slice()
-      .sort((a, b) => a.createdAt - b.createdAt);
+    const ordered = sortOutboxFifo(items);
 
     for (const item of ordered) {
       if (!eligible(item)) continue;
@@ -173,28 +235,21 @@ async function drain() {
         storeRef.dispatch(removeItem(item.id));
         storeRef.dispatch(setLastSyncAt(Date.now()));
       } catch (err) {
-        const status = err.response?.status;
-        if (status === 409 || err.response?.data?.code === 'STALE_STATE') {
+        const verdict = classifySendError(err, item.tries);
+        item.tries = verdict.nextTries;
+        if (verdict.outcome === 'conflict') {
           item.status = 'conflict';
-          item.error = err.response?.data?.message || 'Entity state changed; someone else may have acted on it.';
-          notify('Sync conflict', `${item.label} — ${item.error}`);
-        } else if (status && status >= 400 && status < 500) {
-          item.tries += 1;
+          item.error = verdict.reason;
+          notify('Sync conflict', `${item.label} — ${verdict.toast}`);
+        } else if (verdict.outcome === 'terminal') {
           item.terminal = true;
           item.status = 'failed';
-          item.error = err.response?.data?.message || `Server rejected (HTTP ${status})`;
-          notify('Sync failed', `${item.label} — ${item.error}`);
+          item.error = verdict.reason;
+          notify('Sync failed', `${item.label} — ${verdict.toast}`);
         } else {
           // network / 5xx — transient, keep queued for the next drain
-          item.tries += 1;
           item.status = 'queued';
           item.error = null;
-          if (item.tries > MAX_TRANSIENT) {
-            item.terminal = true;
-            item.status = 'failed';
-            item.error = 'Kept failing after multiple retries.';
-            notify('Sync failed', `${item.label} — still not synced.`);
-          }
         }
         item.updatedAt = Date.now();
         items = items.map(i => (i.id === item.id ? item : i));
