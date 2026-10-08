@@ -406,6 +406,8 @@ public class InternController : ControllerBase
             degree = intern.Degree,
             gender = intern.Gender.HasValue ? (int)intern.Gender.Value : (int?)null,
             department = intern.Department?.Name,
+            departmentLatitude = intern.Department?.Latitude,
+            departmentLongitude = intern.Department?.Longitude,
             mentorName = intern.Mentor?.FullName,
             startDate = intern.StartDate,
             endDate = intern.EndDate,
@@ -548,13 +550,14 @@ public class InternController : ControllerBase
         if (existing)
             return BadRequest(new { message = "Attendance already marked for today" });
 
-        // 2. Strict Server-Side Geofence Check
-        double deptLat = (intern.Department?.Latitude != null && intern.Department.Latitude.Value != 0) ? intern.Department.Latitude.Value : 24.9065;
-        double deptLon = (intern.Department?.Longitude != null && intern.Department.Longitude.Value != 0) ? intern.Department.Longitude.Value : 67.1608;
-        double radius = (intern.Department?.RadiusMeters != null && intern.Department.RadiusMeters.Value > 0) ? intern.Department.RadiusMeters.Value : 100.0;
+        // 2. Strict Server-Side Geofence Check (fail-closed, D-S25)
+        var verdict = _geo.EvaluateGeofence(intern.Department, req.Latitude, req.Longitude);
+        if (!verdict.ConfigValid)
+            return BadRequest(new { message = verdict.Message });
 
-        double distanceMeters = _geo.HaversineDistance(req.Latitude, req.Longitude, deptLat, deptLon);
-        bool isInRange = distanceMeters <= radius;
+        double distanceMeters = verdict.DistanceMeters;
+        double radius = verdict.AllowedRadiusMeters;
+        bool isInRange = verdict.InRange;
 
         // 3. Face matching removed: attendance is GPS-geofence gated only.
         bool faceVerified = isInRange;
