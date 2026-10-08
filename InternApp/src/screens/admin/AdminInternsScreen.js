@@ -38,6 +38,7 @@ export default function AdminInternsScreen({navigation}) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [creating, setCreating] = useState(false);
+  const [cnicError, setCnicError] = useState(null);
 
   const [detailTarget, setDetailTarget] = useState(null);
   const [internDocs, setInternDocs] = useState({uploaded: [], issued: []});
@@ -220,9 +221,15 @@ export default function AdminInternsScreen({navigation}) {
       queuedToast(queued, 'Intern created. They can now log in.');
       setShowCreateModal(false);
       setForm(emptyForm);
+      setCnicError(null);
       fetchInternsData();
     } catch (e) {
-      showToast(e.response?.data?.message || "Couldn't create the intern. Try again.", 'error');
+      if (e.response?.status === 409) {
+        setCnicError(e.response?.data?.message || "This CNIC is already registered to another intern.");
+      } else {
+        setCnicError(null);
+        showToast(e.response?.data?.message || "Couldn't create the intern. Try again.", 'error');
+      }
     } finally { setCreating(false); }
   };
 
@@ -284,7 +291,7 @@ export default function AdminInternsScreen({navigation}) {
         hideTitle
         title="Interns"
         right={(
-          <TouchableOpacity id="add-intern-btn" style={styles.headerBtn} onPress={() => { setForm(emptyForm); setShowCreateModal(true); }}>
+          <TouchableOpacity id="add-intern-btn" style={styles.headerBtn} onPress={() => { setForm(emptyForm); setCnicError(null); setShowCreateModal(true); }}>
             <Icon name="userPlus" size={16} color="#fff" />
             <Text style={styles.headerBtnText}>Add Intern</Text>
           </TouchableOpacity>
@@ -404,6 +411,8 @@ export default function AdminInternsScreen({navigation}) {
                 mentorOptions={mentorsFor(form.departmentId).map(m => ({value: String(m.id), label: m.fullName}))}
                 shiftOptions={shifts.map(s => ({value: String(s.id), label: s.name}))}
                 onDeptChange={v => onDeptChange(v, form.mentorId, setForm)}
+                cnicError={cnicError}
+                clearCnicError={() => setCnicError(null)}
                 inlineDropdowns
               />
 
@@ -661,8 +670,9 @@ export default function AdminInternsScreen({navigation}) {
 }
 
 // Shared field set for Create + Edit modals.
-function InternFormFields({styles, colors, form, setForm, deptOptions, mentorOptions, shiftOptions, onDeptChange, isEdit, inlineDropdowns}) {
+function InternFormFields({styles, colors, form, setForm, deptOptions, mentorOptions, shiftOptions, onDeptChange, isEdit, inlineDropdowns, cnicError, clearCnicError}) {
   const set = (key, val) => setForm(p => ({...p, [key]: val}));
+  const onCnicChange = v => { set('cnic', v); if (clearCnicError) clearCnicError(); };
   return (
     <>
       <View style={styles.modalField}>
@@ -679,7 +689,13 @@ function InternFormFields({styles, colors, form, setForm, deptOptions, mentorOpt
       </View>
       <View style={styles.modalField}>
         <Text style={styles.fieldLabel}>CNIC</Text>
-        <TextInput id="intern-cnic" style={styles.fieldInput} placeholder="42101-1234567-8" placeholderTextColor={colors.textMuted} value={form.cnic} onChangeText={v => set('cnic', v)} />
+        <TextInput id="intern-cnic" style={styles.fieldInput} placeholder="42101-1234567-8" placeholderTextColor={colors.textMuted} value={form.cnic} onChangeText={onCnicChange} />
+        {cnicError ? (
+          <View style={styles.inlineFieldError}>
+            <Icon name="alert" size={13} color={colors.error} />
+            <Text style={styles.inlineFieldErrorText}>{cnicError}</Text>
+          </View>
+        ) : null}
       </View>
 
       <Text style={styles.fieldLabel}>Gender</Text>
@@ -779,6 +795,8 @@ const makeStyles = colors => StyleSheet.create({
   formRow: {flexDirection: 'row', gap: 12},
   fieldLabel: {color:colors.textSecondary, fontSize:12, fontWeight:'600', marginBottom:6},
   fieldInput: {backgroundColor:colors.card, borderRadius:10, borderWidth:1, borderColor:colors.border, color:colors.text, paddingHorizontal:14, paddingVertical:12, fontSize:14},
+  inlineFieldError: {flexDirection:'row', alignItems:'center', gap:6, marginTop:6},
+  inlineFieldErrorText: {color:colors.error, fontSize:12, flexShrink:1},
   hint: {color: colors.textMuted, fontSize: 11, marginBottom: 14},
   // Detail modal
   detailHeader: {flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom:12},
