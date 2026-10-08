@@ -679,6 +679,21 @@ public class AdminController : ControllerBase
         if (req.ShiftId.HasValue && !await _db.Shifts.AnyAsync(s => s.Id == req.ShiftId && (s.IsCompanyWide || s.DepartmentId == mentor.DepartmentId)))
             return BadRequest(new { message = "Invalid shift for this department" });
 
+        var normalizedCnic = string.IsNullOrWhiteSpace(req.CNIC) ? null : req.CNIC.Trim();
+        if (normalizedCnic != null)
+        {
+            var duplicateOwner = await (from internRow in _db.Interns
+                                        join userRow in _db.Users on internRow.UserId equals userRow.Id
+                                        where internRow.CNIC == normalizedCnic
+                                        select userRow.Username).FirstOrDefaultAsync();
+            if (duplicateOwner != null)
+                return Conflict(new
+                {
+                    message = $"This CNIC is already registered to another intern (username: {duplicateOwner}). " +
+                              "To re-hire this person, use the Start New Period action on their account."
+                });
+        }
+
         string username;
         var internDeptId = (req.DepartmentId.HasValue && req.DepartmentId.Value > 0) ? req.DepartmentId.Value : mentor.DepartmentId;
         string regNo;
@@ -711,7 +726,7 @@ public class AdminController : ControllerBase
             DepartmentId = internDeptId,
             ShiftId = req.ShiftId,
             FullName = req.FullName,
-            CNIC = req.CNIC,
+            CNIC = normalizedCnic,
             RegNo = regNo,
             University = req.University,
             Degree = req.Degree,

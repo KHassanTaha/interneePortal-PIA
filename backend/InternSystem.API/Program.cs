@@ -283,6 +283,12 @@ using (var scope = app.Services.CreateScope())
         );
         IF OBJECT_ID('IdempotencyRecords') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_IdempotencyRecords_UserKey' AND object_id = OBJECT_ID('IdempotencyRecords'))
         CREATE UNIQUE INDEX IX_IdempotencyRecords_UserKey ON IdempotencyRecords (UserId, [Key]);
+
+        IF OBJECT_ID('Interns') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_Interns_Cnic' AND object_id = OBJECT_ID('Interns'))
+        ALTER TABLE Interns ALTER COLUMN CNIC nvarchar(20) NULL;
+
+        IF OBJECT_ID('Interns') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_Interns_Cnic' AND object_id = OBJECT_ID('Interns'))
+        CREATE UNIQUE INDEX UX_Interns_Cnic ON Interns(Cnic) WHERE Cnic IS NOT NULL AND Cnic <> '';
     ");
 }
 
