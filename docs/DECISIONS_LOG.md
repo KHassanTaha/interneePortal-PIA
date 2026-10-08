@@ -614,3 +614,37 @@ deliberately **not** changed by this decision.
   than the residuals. Tracked as W4.11 for evaluation when a
   driving requirement appears.
 - **Status:** deferred.
+
+---
+
+### D-S30 — CNIC uniqueness: filtered index + API 409; email half deferred
+
+- **Decision:** Intern CNIC uniqueness is enforced two layers deep:
+  (a) a filtered unique index `UX_Interns_Cnic` on `Interns(CNIC)`
+  with predicate `[CNIC] IS NOT NULL AND [CNIC] <> ''`, column typed
+  `NVARCHAR(20)`; (b) an API pre-check in `POST /admin/interns`
+  (`AdminController.cs:682-695`) that returns **409 Conflict** with
+  the Q18 message naming the owning username and pointing at Start
+  New Period. The email half is **deferred** (owner, 2026-10-08):
+  `Users.Email` does not exist, so there is nothing to make unique
+  yet — Q17 stays open for it.
+- **Rationale:** The `<> ''` predicate mirrors the existing RegNo
+  filtered-index precedent (`AppDbContext`): an empty string is not a
+  CNIC and legacy rows must not block index creation. `NVARCHAR(20)`
+  because the live column was `NVARCHAR(MAX)` (invalid as an index key
+  — SQL error 1919) and real CNICs are 13–15 chars; the type change
+  ships guarded in the Program.cs schema-guard. The API pre-check
+  exists because a raw unique-index violation (`DbUpdateException`)
+  cannot name the owning username, which the Q18 message requires;
+  the DB index remains the race-proof backstop behind it.
+  Deviations from the original ruling, recorded here: index named
+  explicitly (not EF-conventional), filter adds `<> ''`, column
+  re-typed to 20, and 409 verified by curl E2E + §18 emulator run
+  rather than an automated controller test (W2.9:
+  `Program.cs` `Migrate()` runs unconditionally, so
+  WebApplicationFactory boots against the real database).
+- **Status:** CNIC half implemented and verified 2026-10-08
+  (`CnicUniquenessTests.cs` 3 tests; curl E2E 409 naming
+  `ab.PIA.001`; §18 inline error screenshot
+  `logs/screenshots/req-12-cnic-inline-error.png`). Email half
+  deferred pending Q17.
