@@ -20,6 +20,7 @@ import EndOfListMarker from '../../components/EndOfListMarker';
 import {useSelector, useDispatch} from 'react-redux';
 import Icon from '../../components/Icon';
 import {imageUriToBase64, toFileUri, evaluateFaceLiveness} from '../../utils/faceUtils';
+import {hasValidCoordinates, MISSING_GEOFENCE_CONFIG_MESSAGE} from '../../utils/geoUtils';
 import {effectiveFaceStatus} from '../../utils/debug';
 import {setSimulateLocation} from '../../store/slices/debugSlice';
 
@@ -53,6 +54,10 @@ export default function AttendanceScreen({navigation, route}) {
   const [errorMessage, setErrorMessage] = useState('');
   const [resultData, setResultData] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  // Fail-closed geofence (D-S25): the department's coordinates are the only
+  // authorised centre. Disables marking when they are missing with a reason.
+  const [geofenceUnavailable, setGeofenceUnavailable] = useState(false);
 
   // History
   const [records, setRecords] = useState([]);
@@ -189,6 +194,13 @@ export default function AttendanceScreen({navigation, route}) {
           const res = await client.get('/intern/leaves');
           if (!cancelled) setLeaves(res.data);
         } catch {}
+
+        try {
+          const pres = await client.get('/intern/profile');
+          if (!cancelled) {
+            setGeofenceUnavailable(!hasValidCoordinates(pres.data.departmentLatitude, pres.data.departmentLongitude));
+          }
+        } catch {}
       };
       loadData();
       return () => { cancelled = true; if (timeoutId) clearTimeout(timeoutId); };
@@ -235,6 +247,15 @@ export default function AttendanceScreen({navigation, route}) {
       serverChallengesRef.current = rr.data.challenges || [];
       setCurrentChallenge(0);
       setLivenessPassed(false);
+
+      // Fail-closed geofence (D-S25): same pre-camera gate as check-in.
+      if (!hasValidCoordinates(rr.data.departmentLatitude, rr.data.departmentLongitude)) {
+        setGeofenceUnavailable(true);
+        setErrorMessage(MISSING_GEOFENCE_CONFIG_MESSAGE);
+        setStatusState('FAILED');
+        return;
+      }
+      setGeofenceUnavailable(false);
 
       const locOk = await runLocationCheck(rr.data.sessionId);
       if (!locOk) {
@@ -373,6 +394,17 @@ export default function AttendanceScreen({navigation, route}) {
       const rr = res.res;
       setSessionId(rr.data.sessionId);
       setDeptInfo(rr.data);
+
+      // Fail-closed geofence (D-S25): bail out before the camera opens when the
+      // department has no usable coordinates. The server would reject with 400
+      // anyway, but the intern should never reach the liveness camera first.
+      if (!hasValidCoordinates(rr.data.departmentLatitude, rr.data.departmentLongitude)) {
+        setGeofenceUnavailable(true);
+        setErrorMessage(MISSING_GEOFENCE_CONFIG_MESSAGE);
+        setStatusState('FAILED');
+        return;
+      }
+      setGeofenceUnavailable(false);
 
       const preCheckOk = await runLocationCheck(rr.data.sessionId);
       if (!preCheckOk) {
@@ -757,7 +789,11 @@ export default function AttendanceScreen({navigation, route}) {
                 <Icon name="mapPin" size={40} color={colors.textAccent} />
               </Animated.View>
               <Text style={styles.stepTitle}>Ready to Mark Attendance</Text>
-              {!isOnline ? (
+              {geofenceUnavailable ? (
+                <Text style={[styles.stepDesc, {color: colors.error, textAlign: 'center'}]}>
+                  {MISSING_GEOFENCE_CONFIG_MESSAGE}
+                </Text>
+              ) : !isOnline ? (
                 <Text style={[styles.stepDesc, {color: colors.warning, textAlign: 'center'}]}>
                   Requires an internet connection. Reconnect to mark your attendance.
                 </Text>
@@ -781,7 +817,7 @@ export default function AttendanceScreen({navigation, route}) {
               <GradientButton
                 id="start-attendance-btn"
                 onPress={startAttendanceSession}
-                disabled={loading || !isOnline}
+                disabled={loading || !isOnline || geofenceUnavailable}
                 loading={loading}
                 icon={<Icon name="mapPin" size={18} color="#fff" />}>
                 <Text style={styles.primaryBtnText}>Mark Attendance Now</Text>
