@@ -219,8 +219,7 @@ export default function ProfileScreen({navigation, route}) {
       <AppHeader
         home
         right={(
-          <TouchableOpacity id="profile-menu-btn" onPress={() => setSidebarVisible(true)} style={styles.menuBtn}>
-            <Icon name="menu" size={22} color="#fff" />
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Open navigation menu" id="profile-menu-btn" onPress={() => setSidebarVisible(true)} style={styles.menuBtn}><Icon name="menu" size={22} color="#fff" />
           </TouchableOpacity>
         )}
       />

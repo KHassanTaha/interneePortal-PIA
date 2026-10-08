@@ -32,8 +32,29 @@ if (!string.IsNullOrWhiteSpace(httpsCert))
 }
 
 // ─── Services ───────────────────────────────────────────────────────────────
-builder.Services.AddControllers().AddJsonOptions(o =>
-    o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
+builder.Services.AddControllers()
+    .AddJsonOptions(o =>
+        o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()))
+    .ConfigureApiBehaviorOptions(o =>
+    {
+        // Model-binding failures (e.g. "" into a non-nullable DateTime) otherwise return an
+        // RFC 9110 problem-details body with no user-facing message, which the RN clients
+        // replace with a generic "try again" toast. Return {"message": "..."} like the
+        // controllers' own validation errors so screens can show e.response.data.message.
+        o.InvalidModelStateResponseFactory = context =>
+        {
+            var first = context.ModelState
+                .Where(kvp => kvp.Value?.Errors.Count > 0)
+                .Select(kvp => kvp.Key)
+                .OrderBy(k => k.StartsWith("$.", StringComparison.Ordinal) ? 0 : 1)
+                .FirstOrDefault();
+            var field = first?.TrimStart('$', '.');
+            var message = string.IsNullOrEmpty(field)
+                ? "Invalid request. Check the submitted fields and try again."
+                : $"Invalid value for '{field}'. Check the submitted fields and try again.";
+            return new BadRequestObjectResult(new { message });
+        };
+    });
 
 // CORS is only needed for browser clients (native mobile HTTP calls don't use it).
 // Restrict to explicitly configured origins instead of AllowAnyOrigin.
@@ -265,3 +286,9 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+// Top-level statements generate an internal Program class. WebApplicationFactory<Program>
+// in InternSystem.API.Tests cannot see internal types, so the generated entry point is
+// re-declared public here. Removing this line breaks every integration test in that
+// project at compile time, which is the intended failure mode.
+public partial class Program { }

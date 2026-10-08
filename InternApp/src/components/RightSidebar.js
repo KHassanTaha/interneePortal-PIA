@@ -1,7 +1,12 @@
 import React, {useMemo} from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, SafeAreaView, Image
+  View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, Image
 } from 'react-native';
+// SafeAreaView must come from safe-area-context, not react-native. The
+// react-native export is deprecated and logs a warning on every mount;
+// that warning raised the LogBox toast, which renders at the bottom of
+// the screen and physically covered this component's Logout button.
+import {SafeAreaView} from 'react-native-safe-area-context';
 import {useSelector, useDispatch} from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import client, {clearTokens} from '../api/client';

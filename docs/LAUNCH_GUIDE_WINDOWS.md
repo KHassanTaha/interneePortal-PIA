@@ -137,13 +137,48 @@ Fetch them once per machine before starting the API:
 New-Item -ItemType Directory -Force backend\InternSystem.API\Models\AI | Out-Null
 Set-Location backend\InternSystem.API\Models\AI
 
-# <SOURCE_URL> — see docs/DEVELOPMENT_CREDENTIALS.md §5 for the real locations
-curl.exe -L -o facenet.onnx   "<SOURCE_URL>\facenet.onnx"     # 248 MB, ArcFace recognition
-curl.exe -L -o ultraface.onnx "<SOURCE_URL>\ultraface.onnx"   # 1.2 MB, face detection
-curl.exe -L -o antispoof.onnx "<SOURCE_URL>\antispoof.onnx"   # 1.7 MB, liveness / anti-spoofing
+# --- ultraface.onnx (1.2 MB) — face detection. Drop-in, no conversion. ---
+curl.exe -L -o ultraface.onnx `
+  "https://raw.githubusercontent.com/Linzaer/Ultra-Light-Fast-Generic-Face-Detector-1MB/master/models/RFB-320/version-RFB-320.onnx"
 
-Get-ChildItem *.onnx    # verify all three exist and are non-zero
+# --- facenet.onnx (248 MB) — ArcFace 512-D embedding. Drop-in, no conversion. ---
+# NB: the upstream file is named arc.onnx; `-o facenet.onnx` renames it on the way in.
+curl.exe -L -o facenet.onnx `
+  "https://huggingface.co/garavv/arcface-onnx/resolve/main/arc.onnx"
+
+Get-ChildItem *.onnx    # verify both exist and are non-zero
 ```
+
+#### `antispoof.onnx` — NOT a plain download. Pick a path.
+
+The code (`FaceRecognitionService.cs:206-208`) expects a **2-class** model
+where `index 1 == real`, fed **BGR, raw 0-255**. The convenient Hugging Face
+export is **3-class** `[live, print, replay]` and expects **`pixel/255`**.
+Dropping it in unchanged yields meaningless anti-spoof scores.
+
+**Path A — faithful (recommended).** Convert the original 2-class model
+(needs Python + `torch` + `onnx` on the machine):
+
+```powershell
+git clone https://github.com/minivision-ai/Silent-Face-Anti-Spoofing
+Set-Location Silent-Face-Anti-Spoofing
+pip install torch onnx
+# then run the conversion snippet in docs/LAUNCH_GUIDE_LINUX.md 5.0 (Path A)
+Copy-Item antispoof.onnx ..      # the clone was made inside Models\AI, so .. is Models\AI
+Get-Item ..\antispoof.onnx       # verify it landed in Models\AI and is non-zero
+Set-Location ..                  # back to Models\AI; delete the clone when done
+Remove-Item -Recurse -Force Silent-Face-Anti-Spoofing
+```
+
+No code change needed on Path A.
+
+**Path B — faster fetch, needs 2 code tweaks.** Use the 3-class HF export,
+then fix preprocessing (divide by 255) and the score
+(`real = 1 - (print + replay)`) in `FaceRecognitionService.cs`.
+**Not yet written into this guide — it is a code change and needs a tracked
+task.** Ask before choosing it.
+
+Source spec: `docs/archived/FACE_RECOGNITION_AND_SYSTEM_GUIDE.md` §7.3.
 
 ### 5.1 Build & start
 
@@ -273,6 +308,52 @@ adb emu kill 2>$null
 
 ---
 
+## Test prerequisites (backend test suite)
+
+`backend/tests/` contains three xUnit projects. Two of them need nothing;
+`InternSystem.Integration.Tests` needs a running SQL Server and will **fail
+loudly** without one rather than skipping, because SQL Server is the entire
+point of that project.
+
+Provider policy and the reasons SQLite and InMemory were rejected are recorded in
+`backend/tests/README.md`. There is no InMemory project and there must not be one.
+
+### Verify the server first
+
+```bash
+# Linux / Docker
+docker ps --filter name=sqlserver
+```
+
+```powershell
+# Windows / SQL Express
+sqlcmd -S .\SQLEXPRESS -E -Q "SELECT @@VERSION"
+```
+
+### Connection string resolution
+
+1. `TEST_CONNECTION_STRING` environment variable, if set. This is the CI path.
+2. Otherwise the `Server=` connection string recorded in
+   `docs/DEVELOPMENT_CREDENTIALS.md`, found by walking up from the test binary.
+3. If neither yields a value the fixture throws and names both options.
+
+### The test database is never reused
+
+Each run creates `InternSystemTest_{Guid}` and drops it afterwards. The fixture
+**overrides** `Database=` in the resolved connection string, so even a connection
+string naming the app database `InternSystemDB` produces a separate ephemeral
+database. You cannot accidentally point the tests at your working data, and you
+do not need to create or seed anything beforehand.
+
+```bash
+cd backend
+dotnet test
+```
+
+Schema is built with `EnsureCreated()` from the current EF model. Migrations are
+not used: AGENTS.md 4.10 records that the migration snapshot is stale and that
+`dotnet ef migrations` would corrupt the migration history.
+
 ## 12. Troubleshooting Quick Reference
 
 | Issue | Fix |
@@ -290,6 +371,8 @@ adb emu kill 2>$null
 | Stale app behavior | Stale embedded bundle present → DELETE it and reinstall (§8) |
 | Gradle build fails | `cd InternApp\android && .\gradlew.bat clean && .\gradlew.bat assembleDebug` |
 | LogBox overlay swallows taps | Tap the "!" bubble once to dismiss |
+
+| Integration tests fail with 'Cannot open database' or similar | SQL Server is not running, or the connection string is wrong. See **Test prerequisites** above. |
 
 ---
 

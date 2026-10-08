@@ -674,8 +674,7 @@ export default function AttendanceScreen({navigation, route}) {
         <AppHeader
           home
           right={(
-            <TouchableOpacity id="attendance-menu-btn" onPress={() => setSidebarVisible(true)} style={styles.menuBtn}>
-              <Icon name="menu" size={22} color="#fff" />
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Open navigation menu" id="attendance-menu-btn" onPress={() => setSidebarVisible(true)} style={styles.menuBtn}><Icon name="menu" size={22} color="#fff" />
             </TouchableOpacity>
           )}
         />

@@ -97,7 +97,7 @@ export default function ApplyLeaveScreen({navigation}) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchLeaves(); }} tintColor={colors.primary} />}
       >
         <AppHeader
-          right={<TouchableOpacity id="leave-menu-btn" onPress={() => setSidebarVisible(true)} style={styles.menuBtn}><Icon name="menu" size={22} color="#fff" /></TouchableOpacity>}
+          right={<TouchableOpacity accessibilityRole="button" accessibilityLabel="Open navigation menu" id="leave-menu-btn" onPress={() => setSidebarVisible(true)} style={styles.menuBtn}><Icon name="menu" size={22} color="#fff" /></TouchableOpacity>}
         />
         <RightSidebar visible={sidebarVisible} onClose={() => setSidebarVisible(false)} navigation={navigation} />
 

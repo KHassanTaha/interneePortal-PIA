@@ -78,7 +78,7 @@ export default function InternTransfersScreen({navigation}) {
     <ScreenBackground style={styles.container}>
       <AppHeader
         onBack={() => navigation.goBack()}
-        right={<TouchableOpacity style={styles.menuBtn} onPress={() => setSidebarVisible(true)}><Icon name="menu" size={22} color="#fff" /></TouchableOpacity>}
+        right={<TouchableOpacity accessibilityRole="button" accessibilityLabel="Open navigation menu" style={styles.menuBtn} onPress={() => setSidebarVisible(true)}><Icon name="menu" size={22} color="#fff" /></TouchableOpacity>}
       />
       <RightSidebar visible={sidebarVisible} onClose={() => setSidebarVisible(false)} navigation={navigation} />
       <ScrollView contentContainerStyle={{paddingBottom:100, flexGrow:1}} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => {setRefreshing(true); fetchData();}} tintColor={colors.primary}/>}>

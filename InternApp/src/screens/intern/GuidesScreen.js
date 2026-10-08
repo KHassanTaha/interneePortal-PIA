@@ -21,7 +21,7 @@ export default function GuidesScreen({navigation}) {
   return (
     <ScreenBackground>
       <ScrollView style={styles.container}>
-        <AppHeader home right={<TouchableOpacity id="guides-menu-btn" onPress={() => setSidebarVisible(true)} style={styles.menuBtn}><Icon name="menu" size={22} color="#fff" /></TouchableOpacity>} />
+        <AppHeader home right={<TouchableOpacity accessibilityRole="button" accessibilityLabel="Open navigation menu" id="guides-menu-btn" onPress={() => setSidebarVisible(true)} style={styles.menuBtn}><Icon name="menu" size={22} color="#fff" /></TouchableOpacity>} />
         <RightSidebar visible={sidebarVisible} onClose={() => setSidebarVisible(false)} navigation={navigation} />
 
         <View style={styles.header}>

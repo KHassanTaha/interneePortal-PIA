@@ -38,6 +38,15 @@ keystore.properties
 appsettings.Production.json
 docs/DEVELOPMENT_CREDENTIALS.md
 
+# Agent working state (§9.1 of AGENTS.md) — local only, never committed.
+# docs/DECISIONS_LOG.md is the committed public record and is NOT listed here.
+docs/TODO.md
+docs/PROGRESS.md
+docs/DECISIONS.md
+docs/REQUIREMENTS.md
+docs/CONTEXT.md
+docs/BLOCKERS.md
+
 # Stray dumps from malformed shell redirects (e.g. `cmd >--000.ppm`)
 --*.ppm
 

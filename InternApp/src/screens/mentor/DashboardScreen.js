@@ -54,8 +54,7 @@ export default function MentorDashboard({navigation}) {
       <AppHeader
         title="Dashboard"
         right={(
-          <TouchableOpacity id="mentor-menu-btn" onPress={() => setSidebarVisible(true)} style={styles.menuBtn}>
-            <Icon name="menu" size={22} color="#fff" />
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Open navigation menu" id="mentor-menu-btn" onPress={() => setSidebarVisible(true)} style={styles.menuBtn}><Icon name="menu" size={22} color="#fff" />
           </TouchableOpacity>
         )}
       />

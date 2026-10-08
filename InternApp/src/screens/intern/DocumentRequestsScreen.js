@@ -226,8 +226,7 @@ export default function DocumentRequestsScreen({navigation}) {
       <AppHeader
         home
         right={(
-          <TouchableOpacity id="docreq-menu-btn" onPress={() => setSidebarVisible(true)} style={styles.menuBtn}>
-            <Icon name="menu" size={22} color="#fff" />
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Open navigation menu" id="docreq-menu-btn" onPress={() => setSidebarVisible(true)} style={styles.menuBtn}><Icon name="menu" size={22} color="#fff" />
           </TouchableOpacity>
         )}
       />

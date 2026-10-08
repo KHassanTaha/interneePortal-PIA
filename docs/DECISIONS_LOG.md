@@ -164,3 +164,232 @@ Session that (re)implemented and verified certificate templates, gatepass layout
 ### M11 — E2E offline-queue/reconnect/conflict (outstanding)
 - Decision: Not yet executed. Plan: boot `Pixel7` emulator (port 5554), `adb reverse tcp:5000 tcp:5000`, install the APK (`com.internapp`), then drive E2E offline-queue → reconnect → conflict flows for certificate/face/gatepass. API base is `http://localhost:5000/api` (works via adb reverse). No Detox config / `e2e/` folder exists yet.
 - Status: pending (documented, not run).
+### D-S8 ONNX face models are not committed to git
+- Decision: `backend/InternSystem.API/Models/AI/*.onnx` is gitignored and acquired at setup time, documented in `docs/LAUNCH_GUIDE_LINUX.md` §5.0 and `docs/LAUNCH_GUIDE_WINDOWS.md` §5.0. Reason: `facenet.onnx` is 248 MB, over GitHub's 100 MB hard push limit — the first push of this work was rejected by the pre-receive hook. Git LFS was considered and rejected: it would consume ~248 MB of GitHub's free 1 GB/month LFS bandwidth per clone cycle, and nothing in the app is served from LFS. Source URLs live in `docs/archived/FACE_RECOGNITION_AND_SYSTEM_GUIDE.md` §7.
+- Trade-off: a fresh clone has **no face verification** until setup runs. `FaceRecognitionService` logs a warning and disables the gates rather than failing, so the symptom is silent. The dead-state check (§10.4 of `AGENTS.md`) cannot pass until the models are fetched.
+- Status: implemented (gitignore + both launch guides). **Partially open:** `antispoof.onnx` is a documented contract mismatch — the Hugging Face export is 3-class `[live, print, replay]` with `pixel/255` input, while `FaceRecognitionService.cs:206-208` expects 2-class with `index 1 == real` and raw 0-255 BGR. `ultraface.onnx` and `facenet.onnx` are drop-in. Tracked as `TODO.md` W6.1 `[~]`, BLOCKERS B4, CONTEXT A12.
+
+### D-S9 JWT signing key supplied by environment variable only
+- Decision: No JWT signing key is stored in any committed file. `appsettings.json` and `appsettings.Development.json` both carry `"Jwt:Key": ""`; the key is supplied via the `Jwt__Key` environment variable. Reason: `appsettings.Development.json` is tracked and both remotes (`KHassanTaha/interneePortal-PIA` and `yoabnadeem12/interneePortal-PIA`) are **public** — a committed signing key is a published credential that lets anyone mint a valid JWT for any role until it is rotated. This extends the existing `ConnectionStrings__DefaultConnection` fail-closed pattern; `Program.cs:19` throws with an actionable message when the key is missing or under 32 bytes.
+- Status: implemented. The key was never committed, so no rotation was required. Six documentation references that claimed the dev key lived in `appsettings.Development.json` were corrected in the same change.
+
+### D-S10 Face thresholds: code and AGENTS.md §4.4 disagree — escalated, not "fixed"
+- Finding: `FaceMatchThreshold: 0.58` in `appsettings.json` is read by **no code**. The live match at `AttendanceVerificationController.cs:237` calls `_face.Compare(liveEmbedding, storedEmbedding)` with no threshold argument, so the effective limit is the hardcoded `FaceRecognitionService.DefaultThreshold = 0.70` (line 37). Since cosine distance passes at `distance <= threshold`, `0.70` is **more permissive** than the `0.58` documented in AGENTS.md §4.4. Similarly, `DefaultSpoofThreshold = 0.40` is live (line 208) while §4.4 documents `realScore >= 0.60`.
+- Decision: Deliberately left unchanged. Editing the constant to match the doc would tighten the gate with no validation data and could lock legitimate interns out of attendance — that is a worse failure than the current gap, and it is not a documentation fix. Either the config key is wired through to `Compare()` or the code and the doc are both corrected, after tuning against a validation set for a target FAR/FRR.
+- Impact: the shipped biometric gate is weaker than the contract in AGENTS.md §4.4 states, and a reviewer reading §4.4 would draw a wrong conclusion about system security.
+- Status: **open — owner decision required.** Tracked as BLOCKERS B6, CONTEXT Q6, and substantively as `TODO.md` W9.3.
+
+### D-S11 Dependency remediation: axios, ImageSharp, and TypeScript tooling
+- Decision: Three changes in one commit, all driven by `AGENTS.md` §11.2 ("do not commit on a high or critical advisory") and §3.1/§11.2 ("no `tsconfig.json`, `typescript`, `ts-jest`, `@types/*`").
+  1. **`axios` 1.19.0 → 1.20.0.** `npm audit` reported **12 high-severity advisories** against `axios` in range `1.0.0–1.19.0` (GHSA-vh66-26gq-q6x8, GHSA-9fr6-4gfg-395g, GHSA-c29m-xwm3-cm6r, GHSA-mghh-pgcx-3jjj, GHSA-x97p-jq2g-jp4f, GHSA-3pq3-5fj3-cg6v, GHSA-542g-h47m-68v8, GHSA-j8rh-479h-cp32, GHSA-4hqw-qxg8-jxx2, GHSA-m8m8-qj5v-23w3, GHSA-44g4-m2mj-wpvx, GHSA-r4gj-5m52-g5wh). axios is the HTTP layer for the whole app, so this was the only flagged **direct production dependency**. Many of the advisories are Node-adapter-specific and not reachable from React Native's XHR adapter, but the prototype-pollution and header-injection gadgets are not obviously adapter-bound, so the upgrade is required rather than argued away. `^1.19.0` already permitted 1.20.0, so there is no dependency-graph change: the `package.json` range is now pinned to `^1.20.0` and the lockfile resolves to 1.20.0.
+  2. **`SixLabors.ImageSharp` 3.1.7 → 3.1.12** (patch, same 3.1.x line). Cleared GHSA-rxmq-m78w-7wmc and removed both `NU1902` build warnings. `4.1.2` is the latest major but 3.1.12 clears the advisory without a major-version migration.
+  3. **Removed all TypeScript tooling**: `typescript`, `@types/jest`, `@types/react`, `@types/react-test-renderer`, `@react-native/typescript-config`, and the root `tsconfig.json`. `InternApp/src/` already contains **zero** `.ts`/`.tsx` files, so this was dead configuration. Nothing in `jest.config.js` (preset is `@react-native/jest-preset` only), `babel.config.js`, or `metro.config.js` referenced `tsconfig.json`.
+- Impact: `npm audit --omit=dev` went from 42 to 39 advisories (8 moderate, 31 high); backend build warnings dropped from 9 to 7.
+- **Correction (2026-10-06, D-S18):** the original text here claimed `dotnet list package --vulnerable` reports **zero** vulnerable packages. That was measured **without `--include-transitive`**, i.e. direct packages only. With `--include-transitive` there are **three High-severity transitives** in `InternSystem.API` and `InternSystem.Infrastructure`: `Microsoft.Extensions.Caching.Memory` 8.0.0 (GHSA-qj66-m88j-hmgj), `System.Text.Json` 8.0.4 (GHSA-8g4q-xg66-9fp4), `System.Formats.Asn1` 5.0.0 (GHSA-447r-wph3-92pm), plus Moderate advisories on `Azure.Identity` 1.10.3 and `Microsoft.Identity.Client` 4.56.0. See D-S18. The `axios` half of this entry is independently verified and correct: auditing `axios@1.19.0` in isolation yields severity **high**, range `1.0.0 - 1.19.0`, `fixAvailable: true`, and exactly the 12 GHSAs listed above.
+- Trade-off: the remaining 39 advisories are **not fixed**, deliberately. Every one of them is a transitive dependency of the Metro / `@react-native-community/cli` toolchain (`body-parser`, `qs`, `joi`, `js-yaml`, `glob`/`brace-expansion`, `image-size`, `fast-xml-parser`, `test-exclude`). None is a direct production dependency, and none is linked into the Android bundle. `npm audit fix --force` would move React Native off 0.86.2, which `AGENTS.md` §3.1 forbids as a side effect of an unrelated task. Accepted as known tooling risk; revisit on the next RN major upgrade.
+- Status: implemented and verified. `dotnet build -c Release` succeeded (0 errors, 7 warnings); `dotnet list package --vulnerable` clean; Metro restarted on the new `node_modules` and an admin login completed on the emulator with **zero console errors** (`logs/screenshots/2026-10-06-admin-dashboard-axios120.png`).
+
+### D-S12 Anti-spoof: Path A confirmed as the model contract
+- Decision: The owner confirmed **Path A** — convert the original 2-class `MiniFASNetV2` (`2.7_80x80_MiniFASNetV2.pth`) to `antispoof.onnx`. The code contract in `FaceRecognitionService.cs:206-208` is therefore authoritative and is **not** changed: **2-class output, `index 1 == real`, BGR, raw 0–255** (no `/255`). Path B — adapting the code to the 3-class Hugging Face export `[live, print, replay]` — is rejected.
+- Rationale: Path B would change a security-critical scoring path to suit an easier download, and the 3-class model is not the one the thresholds in D-S10 were derived against.
+- Correction in the same change: the Path A copy step in both launch guides was wrong. The clone is made *inside* `Models/AI`, so `cp antispoof.onnx ../../backend/InternSystem.API/Models/AI/` resolved to `.../backend/InternSystem.API/backend/InternSystem.API/Models/AI` — a path that does not exist. Corrected to `cp antispoof.onnx ..` (Linux) and `Copy-Item antispoof.onnx ..` (Windows), each followed by a verification `ls`/`Get-Item` and a cleanup `rm -rf` of the clone.
+- Status: implemented. Path A now documented correctly in `LAUNCH_GUIDE_LINUX.md` §5.0 and `LAUNCH_GUIDE_WINDOWS.md` §5.0.
+
+### D-S13 Rate limiter is two-tier, with a 10× allowance for file serving
+- Finding: `Program.cs:51-70` uses a per-IP fixed window of **1 minute** with `PermitLimit = 300` for every path **except** paths starting with `/api/files/`, which get **3000**. `X-Forwarded-For` takes precedence over the socket remote IP when present. `QueueLimit = 0` and `AutoReplenishment = true`; rejection status is **429**.
+- Rationale (as implemented): an intern dashboard that loads many document thumbnails and report PDFs would otherwise exhaust a 300/min budget that is otherwise dominated by small JSON calls.
+- Verification: 320 consecutive failed logins produced **290× 401 then 30× 429**. `AGENTS.md` §4.5 describes the limiter only as "300/min/IP"; the 3000/min file tier is an undocumented detail and is now recorded here.
+
+### D-S14 Lockout returns 423 only for a correct password — verified, not a defect
+- Finding: `AuthController.Login` evaluates `VerifyPassword` **before** the `LockedUntil` check. A wrong password on a locked account therefore returns **401**, never 423; a **correct** password on a locked account reaches the lock branch and returns **423** with `"Account temporarily locked due to too many failed attempts. Try again in 15 minute(s)."`.
+- Decision: Treated as correct, intentional behaviour and left unchanged. Returning 401 on wrong passwords avoids leaking whether an account exists or is locked — the 423 only appears to a caller who has already proven they hold the right password.
+- Verification: 6 wrong passwords → `FailedLoginAttempts` reached 6 and `LockedUntil` was set in the database; the next login with the **correct** password returned **423**. State reverted afterwards (`FailedLoginAttempts = 0`, `LockedUntil = NULL`) so no seeded account was left locked.
+
+### D-S15 Jest was configured but had never been able to run
+- Finding: `jest.config.js` contained only `preset: '@react-native/jest-preset'`. That preset's default `transformIgnorePatterns` transforms only `react-native`, `jest-react-native` and `@react-native*`, so every other dependency is left as untransformed ESM. The one existing test, `__tests__/App.test.tsx`, therefore died at import time with `SyntaxError: Cannot use import statement outside a module` pointing at `import {Provider} from 'react-redux'`. **No test in this repo had ever passed.** `npx jest` was not merely "unconfigured" — it was broken, and nothing in the launch guides or CI would have caught it.
+- Decision: Give Jest a real config rather than leaving the preset bare.
+  - `transformIgnorePatterns` allow-lists the ESM-published store and navigation packages actually reached by the import graph: `@react-navigation`, `react-redux`, `redux`, `redux-persist`, `@reduxjs/toolkit`, `immer`, `reselect`, plus `react-native-*`.
+  - New `jest.setup.js` mocks AsyncStorage and NetInfo with the **official mocks those libraries ship** (AGENTS.md §6.2), and provides render-time stubs for `react-native-blob-util`, `react-native-keychain`, `react-native-permissions`, `react-native-vision-camera`, `react-native-fs`, `react-native-share`, `react-native-html-to-pdf` and `@react-native-community/geolocation` — none of which ship a mock.
+  - The stubs are explicitly documented as **not** behavioural. A test that needs to assert real Keychain or filesystem behaviour must build its own fake; AGENTS.md §6.5 forbids a test that does not fail against the bug it was written for, and a shared stub that fakes the assertion would violate that.
+- Rationale: W7.5 requires `npx jest` to pass. It could not pass without this. The alternative — deleting the single test — would have made `npx jest` exit green while proving nothing, which is exactly the failure mode AGENTS.md §18 warns about.
+- Impact: `npx jest` now reports **1 suite passed, 1 test passed, exit 0**. The suite is a render smoke test and asserts almost nothing; the coverage target in AGENTS.md §6.4 is untouched and remains W2.
+- Known non-fatal warning: `Jest did not exit one second after the test run has completed`. `App.js` starts `initSyncEngine(store)` and `startConnectivityMonitoring()` inside `useEffect`, which leaves timers running past teardown. Exit code is 0. Not fixed here — it needs an injectable clock or an unmount in the test, which is W2 work.
+- Status: implemented and verified.
+
+### D-S16 — Face-enrollment gate is mandatory for official document issuance
+
+- **Decision:** Official document issuance (gate pass, ID card, certificate)
+  requires BOTH the document gate (CNIC + University ID approved, not
+  withdrawn) AND an enrolled face. This extends the document gate; it does
+  not replace it.
+- **Rationale:** The two gates protect different things. Documents prove
+  identity was verified at intake. Face enrollment proves the person can
+  later mark attendance, which is the point of issuing the document in the
+  first place. Sweep item #20 requested this.
+- **Implementation:** Extend `DocumentGateExtensions.OfficialDocsApprovedAsync`
+  to also check `Intern.FaceEnrolled`. Add `skippedFaceNotEnrolled` to the
+  batch approve response so the two failure classes are distinguishable.
+- **Status:** to implement (W4.7).
+- **ID note:** the owner issued this as "D-S11". D-S11 through D-S15 were
+  already assigned and committed (D-S11 dependency remediation, D-S12
+  anti-spoof Path A, D-S13 rate limiter, D-S14 lockout, D-S15 Jest). Rather
+  than reuse an ID, which would make the log ambiguous, this is **D-S16**.
+
+### D-S18 — Three High-severity transitive advisories are open (correction)
+
+- **What:** `dotnet list package --vulnerable --include-transitive` reports
+  High-severity advisories on three transitive packages in both
+  `InternSystem.API` and `InternSystem.Infrastructure`:
+
+  | Package | Resolved | Severity | Advisory |
+  |---|---|---|---|
+  | `Microsoft.Extensions.Caching.Memory` | 8.0.0 | High | GHSA-qj66-m88j-hmgj |
+  | `System.Text.Json` | 8.0.4 | High | GHSA-8g4q-xg66-9fp4 |
+  | `System.Formats.Asn1` | 5.0.0 | High | GHSA-447r-wph3-92pm |
+  | `Azure.Identity` | 1.10.3 | Moderate (×2) | GHSA-wvxc-855f-jvrv, GHSA-m5vv-6r4h-3vj9 |
+  | `Microsoft.Identity.Client` | 4.56.0 | Low + Moderate | GHSA-x674-v45j-fwxw, GHSA-m5vv-6r4h-3vj9 |
+
+- **Why this matters:** `AGENTS.md` §11.2 says do not commit on a
+  known-vulnerable package. This is a live violation.
+- **Origin of the error:** D-S11 originally stated "zero vulnerable packages
+  across all three backend projects". That command was run **without**
+  `--include-transitive`, so it only saw direct package references. The claim
+  was stated without its scope, which made a scoped negative result read as a
+  general one. `AGENTS.md` §10.6 now names this exact failure mode.
+- **Status:** open. Candidate fix is explicit `PackageReference` bumps to
+  patched versions; not yet attempted. Tracked as W4.8.
+
+### D-S17 — Toast keeps the Modal wrapper; sweep #14 rejected
+
+- **Decision:** `AppToast` continues to render inside its own transparent
+  `<Modal>`. Sweep item #14 ("non-interactive absolute overlay, no Modal") is
+  **rejected**.
+- **Rationale:** The alternative — a plain absolute-positioned overlay — makes
+  toasts invisible whenever any screen modal is open (bottom sheets, confirm
+  dialogs, form overlays). That is a worse user-facing defect than a
+  4-second tap window. The Aug-19 fix exists because the invisible-under-modal
+  bug was observed and painful.
+- **Experiment run 2026-10-06.** `pointerEvents="none"` was applied to both
+  the `<Modal>` and its root view, then verified on `emulator-5554` against
+  the New Department sheet (a `SwipeableModal`), which fires
+  `Department name is required.` on an empty submit:
+  - **(a) toast visible above the sheet — PASS.** `uiautomator` sees only the
+    toast, because it reports the top Modal window and not the sheet beneath.
+  - **(b) tap underneath while the toast shows — FAIL, partially.** Tapping
+    the Name field at y≈1214 (far from the toast) **did** land — the keyboard
+    opened, confirming focus. Tapping Cancel at y≈2167, which sits directly
+    under the toast, **did not** land; the sheet stayed open. A React Native
+    `Modal` is its own native window: `pointerEvents="none"` on its content
+    does not disable that window's touch interception over the region the
+    toast occupies. Since the toast is anchored to the bottom (`bottom: 24`)
+    — exactly where action buttons live — the remaining unintercepted strip is
+    the one that matters least.
+  - **(c) auto-dismiss at 4 s — PASS.** `setTimeout(dismiss, 4000)`; the sheet
+    reappeared in the accessibility tree ~4 s after the toast.
+  - **(d) `adb logcat | grep ReactNativeJS | grep toast` — PASS.**
+    `'[toast]', 'error', 'Department name is required.'`
+  The change was therefore **reverted** to `pointerEvents="box-none"`, so the
+  toast close button remains tappable. Toast behaviour is unchanged from
+  2026-08-19.
+- **Mitigation accepted:** A 3-second duration (down from 4 s) is a candidate
+  follow-up to shorten the tap window. Not scheduled.
+- **Status:** implemented (unchanged behaviour, decision recorded).
+- **ID note:** the owner issued this as "D-S12"; D-S12 was already assigned to
+  anti-spoof Path A, so this is **D-S17**.
+
+### D-S21 — Uniform error shape for model-binding failures
+
+- **Decision:** `Program.cs` configures
+  `InvalidModelStateResponseFactory` so any 400 caused by DTO binding
+  failure returns `{"message": "..."}` — the same shape controllers
+  return for their own validation errors. The message names the
+  offending field where possible ("Invalid value for 'startDate'.").
+- **Rationale:** The mobile client's error handler reads
+  `e.response?.data?.message`. Before this change, a model-binding
+  failure produced an RFC 9110 problem-details body with no `message`
+  field, so the app showed the generic "Try again" toast with no
+  actionable information. This was the root cause of the createIntern
+  "generic try again" bug: the admin form sent `startDate: ""` /
+  `endDate: ""` for blank dates, which cannot bind to the non-nullable
+  `DateTime` fields of `AdminCreateInternRequest`.
+- **Impact:** All 400 responses from DTO binding now carry a
+  user-readable message. The client's fallback toast becomes a last
+  resort instead of the common path.
+- **Constraint:** Future custom error responses must use the same
+  `{"message": "..."}` shape. Do not introduce a new envelope.
+- **Status:** implemented and verified 2026-10-06 (empty-date POST
+  previously returned the problem-details envelope with no `message`;
+  after the change it returns `HTTP 400 {"message":"Invalid value for
+  'startDate'. Check the submitted fields and try again."}`).
+
+---
+
+### D-S23 — Attendance captures are retained for both outcomes
+
+- **Decision:** The photo captured during an attendance attempt is
+  stored server-side for **both** successful and failed attempts.
+  Successful captures are served to the intern (own history) and to
+  mentor/admin (attendance views). Failed captures are served to
+  mentor/admin only (REQ-05 §5.3) and are not shown to the intern.
+- **Rationale:** Successful captures were already retained and
+  displayed before this decision; the change is extending the same
+  retention to the failure path so a mentor can distinguish a
+  genuine failed match (lighting, glasses, angle) from an attempted
+  impersonation. The failed path is additive, not a new class of
+  retention.
+- **Corrects:** FACE-02 in `AGENTS.md` §4.4 and
+  `FACE_RECOGNITION_AND_SYSTEM_GUIDE.md` §2, both of which claimed
+  the raw photo is never persisted. That claim did not match the
+  code. The corrected wording is in Ruling 1b below.
+- **Scope:** Attendance captures only. Face-enrollment captures are
+  out of scope for this decision — Q6 remains open.
+- **Retention:** Both success and failure captures share the same
+  retention policy. The policy value is Q8a (still open). Do not
+  implement retention changes until Q8a is answered.
+- **Status:** to implement (part of REQ-05).
+
+#### Verified current behaviour (grep evidence, 2026-10-06)
+
+Search pattern: `attendance.*\.jpg|attendance-photos|attendance-failures|SaveAttendancePhoto|photoPath|PhotoPath`
+(equivalently `photoPath|PhotoPath`), scope `backend/InternSystem.API` and
+`backend/InternSystem.Infrastructure`, `--include=*.cs`. A match would have
+been any assignment of a stored image path to an attendance or verification
+entity. `rg` is not installed on this machine; `grep -rnE` with the same
+pattern and the same two directories was used.
+
+**Write path — one, single location.**
+
+| What | file:line |
+|------|-----------|
+| `SaveBase64ImageAsync(req.FaceImage, Path.Combine("faces", intern.Id.ToString(), "verify"))` | `AttendanceVerificationController.cs:252-253` |
+| result assigned to `session.VerificationPhotoPath` | `AttendanceVerificationController.cs:258` |
+| copied onto the attendance row on check-in | `AttendanceVerificationController.cs:377` (`CheckInPhotoPath`) |
+| copied onto the attendance row on check-out | `AttendanceVerificationController.cs:516`, and again at `:534` |
+
+**Column existence (schema-guard, not migrations).**
+`Program.cs:212-215` adds `Attendances.CheckInPhotoPath` /
+`CheckOutPhotoPath`; `Program.cs:220-221` adds
+`AttendanceVerificationSessions.VerificationPhotoPath`.
+
+**Read paths (served to roles).**
+
+| Surface | file:line |
+|---------|-----------|
+| admin intern list, per-attendance photos | `AdminController.cs:526-527` |
+| admin attendance projection | `AdminController.cs:1852-1853` |
+| mentor attendance projections | `MentorController.cs:152-153`, `:243-244`, `:676-677` |
+| intern own history | `InternController.cs:654` |
+
+**On-disk confirmation.** `uploads/faces/{internId}/verify/` exists for at
+least intern ids 4, 128 and 1241 (`find uploads -type d -name verify`).
+`FileService.cs:31` creates the `faces` root on startup.
+`uploads/attendance-failures/` does **not** exist — the failure path has no
+storage yet, which is exactly what REQ-05 adds.
+
+**Important sequencing detail, not visible in the ruling text:** the write at
+line 252 sits *after* the liveness, anti-spoof, enrollment and match gates,
+so on a face mismatch the capture is **currently discarded**
+(`AttendanceVerificationController.cs:229-249` returns before line 252).
+REQ-05 therefore does not "stop discarding on the failure path" for that
+gate — it must move or add a write *earlier* in the method. Worth
+confirming before implementation.

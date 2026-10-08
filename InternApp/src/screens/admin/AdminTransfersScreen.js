@@ -119,7 +119,7 @@ export default function AdminTransfersScreen({navigation}) {
 
   return (
     <ScreenBackground style={styles.container}>
-      <AppHeader hideTitle home title="Transfers" right={<TouchableOpacity style={styles.menuBtn} onPress={() => setSidebarVisible(true)}><Icon name="menu" size={20} color="#fff" /></TouchableOpacity>} />
+      <AppHeader hideTitle home title="Transfers" right={<TouchableOpacity accessibilityRole="button" accessibilityLabel="Open navigation menu" style={styles.menuBtn} onPress={() => setSidebarVisible(true)}><Icon name="menu" size={20} color="#fff" /></TouchableOpacity>} />
       <RightSidebar visible={sidebarVisible} onClose={() => setSidebarVisible(false)} navigation={navigation} />
       <ScrollView contentContainerStyle={{paddingBottom:100, flexGrow:1}} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => {setRefreshing(true); fetchTransfersData();}} tintColor={colors.primary}/>}>
         <View style={styles.searchWrap}>

@@ -216,8 +216,7 @@ export default function DocumentsScreen({navigation}) {
       <AppHeader
         home
         right={(
-          <TouchableOpacity id="documents-menu-btn" onPress={() => setSidebarVisible(true)} style={styles.menuBtn}>
-            <Icon name="menu" size={22} color="#fff" />
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Open navigation menu" id="documents-menu-btn" onPress={() => setSidebarVisible(true)} style={styles.menuBtn}><Icon name="menu" size={22} color="#fff" />
           </TouchableOpacity>
         )}
       />

@@ -176,13 +176,56 @@ Fetch them once per machine before starting the API:
 mkdir -p backend/InternSystem.API/Models/AI
 cd backend/InternSystem.API/Models/AI
 
-# <SOURCE_URL> — see docs/DEVELOPMENT_CREDENTIALS.md §5 for the real locations
-curl -L -o facenet.onnx   "<SOURCE_URL>/facenet.onnx"     # 248 MB, ArcFace recognition
-curl -L -o ultraface.onnx "<SOURCE_URL>/ultraface.onnx"   # 1.2 MB, face detection
-curl -L -o antispoof.onnx "<SOURCE_URL>/antispoof.onnx"   # 1.7 MB, liveness / anti-spoofing
+# --- ultraface.onnx (1.2 MB) — face detection. Drop-in, no conversion. ---
+curl -L -o ultraface.onnx \
+  "https://raw.githubusercontent.com/Linzaer/Ultra-Light-Fast-Generic-Face-Detector-1MB/master/models/RFB-320/version-RFB-320.onnx"
 
-ls -la *.onnx    # verify all three exist and are non-zero
+# --- facenet.onnx (248 MB) — ArcFace 512-D embedding. Drop-in, no conversion. ---
+# NB: the upstream file is named arc.onnx; `-o facenet.onnx` renames it on the way in.
+curl -L -o facenet.onnx \
+  "https://huggingface.co/garavv/arcface-onnx/resolve/main/arc.onnx"
+
+ls -la *.onnx    # verify both exist and are non-zero
 ```
+
+#### `antispoof.onnx` — NOT a plain download. Pick a path.
+
+The code (`FaceRecognitionService.cs:206-208`) expects a **2-class** model
+where `index 1 == real`, fed **BGR, raw 0-255**. The convenient Hugging Face
+export is **3-class** `[live, print, replay]` and expects **`pixel/255`**.
+Dropping it in unchanged yields meaningless anti-spoof scores.
+
+**Path A — faithful (recommended).** Convert the original 2-class model:
+
+```bash
+git clone https://github.com/minivision-ai/Silent-Face-Anti-Spoofing
+cd Silent-Face-Anti-Spoofing && pip install torch onnx
+python - <<'PY'
+import torch, onnx
+from model_lib.MiniFASNet import MiniFASNetV2
+model = MiniFASNetV2(num_classes=2, input_size=(80, 80), conv6_kernel=(3, 3)).to("cpu")
+model.load_state_dict(torch.load("resources/anti_spoof_models/2.7_80x80_MiniFASNetV2.pth", map_location="cpu"))
+model.eval()
+torch.onnx.export(model, torch.randn(1, 3, 80, 80), "antispoof.onnx",
+                  input_names=["input"], output_names=["output"],
+                  opset_version=11, dynamic_axes={"input": {0: "batch"}})
+print("wrote antispoof.onnx (2-class, BGR, raw 0-255)")
+PY
+cp antispoof.onnx ..      # the clone was made inside Models/AI, so .. is Models/AI
+ls -la ../antispoof.onnx   # verify it landed in Models/AI and is non-zero
+cd ..                      # back to Models/AI; delete the clone when done
+rm -rf Silent-Face-Anti-Spoofing
+```
+
+No code change needed on Path A.
+
+**Path B — faster fetch, needs 2 code tweaks.** Use the 3-class HF export,
+then fix preprocessing (divide by 255) and the score
+(`real = 1 - (print + replay)`) in `FaceRecognitionService.cs`.
+**Not yet written into this guide — it is a code change and needs a tracked
+task.** Ask before choosing it.
+
+Source spec: `docs/archived/FACE_RECOGNITION_AND_SYSTEM_GUIDE.md` §7.3.
 
 ### 5.1 Build & start
 
@@ -357,6 +400,7 @@ set -euo pipefail
 ROOT="/home/taha/Documents/pia-interns-app"
 SA_PASS='<SA password>'
 CONN='<ConnectionStrings__DefaultConnection value — §3 SQL auth string>'
+JWT='<Jwt__Key signing key — §4 of docs/DEVELOPMENT_CREDENTIALS.md (required; API fails closed without it)>'
 
 pkill -f "react-native start" 2>/dev/null || true
 pkill -f "metro" 2>/dev/null || true
@@ -389,6 +433,7 @@ fi
 cd "$ROOT/backend/InternSystem.API"
 dotnet restore && dotnet build --no-restore -c Release
 setsid env ASPNETCORE_ENVIRONMENT=Development "ConnectionStrings__DefaultConnection=$CONN" \
+  "Jwt__Key=$JWT" \
   nohup dotnet run --no-build -c Release > "$ROOT/backend/intern-api.log" 2>&1 < /dev/null &
 until ss -ltn | grep -q ':5000 '; do sleep 2; done
 
@@ -415,6 +460,52 @@ echo "   Logs:     tail -f $ROOT/backend/intern-api.log $ROOT/metro.log"
 ```
 
 ---
+
+## Test prerequisites (backend test suite)
+
+`backend/tests/` contains three xUnit projects. Two of them need nothing;
+`InternSystem.Integration.Tests` needs a running SQL Server and will **fail
+loudly** without one rather than skipping, because SQL Server is the entire
+point of that project.
+
+Provider policy and the reasons SQLite and InMemory were rejected are recorded in
+`backend/tests/README.md`. There is no InMemory project and there must not be one.
+
+### Verify the server first
+
+```bash
+# Linux / Docker
+docker ps --filter name=sqlserver
+```
+
+```powershell
+# Windows / SQL Express
+sqlcmd -S .\SQLEXPRESS -E -Q "SELECT @@VERSION"
+```
+
+### Connection string resolution
+
+1. `TEST_CONNECTION_STRING` environment variable, if set. This is the CI path.
+2. Otherwise the `Server=` connection string recorded in
+   `docs/DEVELOPMENT_CREDENTIALS.md`, found by walking up from the test binary.
+3. If neither yields a value the fixture throws and names both options.
+
+### The test database is never reused
+
+Each run creates `InternSystemTest_{Guid}` and drops it afterwards. The fixture
+**overrides** `Database=` in the resolved connection string, so even a connection
+string naming the app database `InternSystemDB` produces a separate ephemeral
+database. You cannot accidentally point the tests at your working data, and you
+do not need to create or seed anything beforehand.
+
+```bash
+cd backend
+dotnet test
+```
+
+Schema is built with `EnsureCreated()` from the current EF model. Migrations are
+not used: AGENTS.md 4.10 records that the migration snapshot is stale and that
+`dotnet ef migrations` would corrupt the migration history.
 
 ## 12. Troubleshooting Quick Reference
 
@@ -458,8 +549,11 @@ adb emu kill
 docker stop sqlserver
 ```
 
+| Integration tests fail with 'Cannot open database' or similar | SQL Server is not running, or the connection string is wrong. See **Test prerequisites** above. |
+
 ---
 
-**Last Updated**: 2026-09-24 · **Version**: 1.1 · **Compatible**: .NET 8, React Native 0.86, Node 22.11+, Android SDK 34
+**Last Updated**: 2026-10-06 · **Version**: 1.2 · **Compatible**: .NET 8, React Native 0.86, Node 22.11+, Android SDK 34
 
+> **1.2 changes**: quick-start script now sets `Jwt__Key` (the signing key is not committed — see §4 of `docs/DEVELOPMENT_CREDENTIALS.md`; without it the API refuses to start by design). The interactive backend-start commands in §5 already set all three required env vars.
 > **1.1 changes**: backend start now sets `ASPNETCORE_ENVIRONMENT=Development` + `ConnectionStrings__DefaultConnection` (fail-closed startup); fixed the invalid `dotnet clean --no-build`; ready-check uses port 5000 instead of a 401 endpoint; `adb reverse` now required for emulator **and** physical USB phones; added docker-group permission note, DB-create guard before seeding, and the slow-first-build warning.
