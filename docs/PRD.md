@@ -33,9 +33,9 @@ identifiers. Folding them in is tracked separately and is not part of this pass.
 | REQ-05 | Failed attendance attempts logged, photographed, visible | High | `[NEEDS-ANSWER]` — Q8a, Q8b, Q9a, Q9b |
 | REQ-06 | Newest-first ordering across all lists | Low | `[NEEDS-ANSWER]` — Q10 |
 | REQ-07 | Database normalization plan | Low | `[NEEDS-ANSWER]` — Q11 |
-| REQ-08 | Login rate limit and attempt log for admin / mentor | Medium | `[NEEDS-ANSWER]` — Q12a–c |
+| REQ-08 | Login rate limit and attempt log for admin / mentor | Medium | `[TODO]` — Q12a answered (all roles); scope per §REQ-08 |
 | REQ-09 | Database script for replication to GitHub | Informational | answered in §REQ-09 |
-| REQ-10 | Account status enums: add Completed, Paused, etc. | Medium | `[NEEDS-ANSWER]` — Q13a, Q13b |
+| REQ-10 | Account status enums: add Completed, Paused, etc. | Medium | `[TODO]` — Q13a answered (enum set); scope per §REQ-10 |
 | REQ-11 | Restart an old account for a new internship period | High | `[NEEDS-ANSWER]` — Q14a–Q16 |
 | REQ-12 | CNIC and email uniqueness (one account per person) | High | `[NEEDS-ANSWER]` — Q17, Q18 |
 | REQ-13 | Button sizing: proper buffers and spacing across all pages | Medium | `[NEEDS-ANSWER]` — Q19 |
@@ -362,7 +362,7 @@ as a task in `TODO.md`. The plan:
 
 ## REQ-08 — Login rate limit and attempt log for admin / mentor
 
-**Status:** `[NEEDS-ANSWER]` (Q12a, Q12b, Q12c)
+**Status:** `[NEEDS-ANSWER]` (Q12b, Q12c) — Q12a answered 2026-10-08
 **Priority:** Medium (security)
 **Category:** Security
 **Overlaps:** `DECISIONS_LOG.md` D-S1, D-S2 and the "Security phase"
@@ -374,20 +374,26 @@ The owner wants rate limiting and attempt logging on login
 specifically for admin and mentor, in addition to whatever already
 exists.
 
-**Open questions — see Q12a, Q12b, Q12c.**
+**Open questions — see Q12b, Q12c.** Q12a (scope) is answered.
 
-**Acceptance criteria (draft pending Q12 answers).**
+**Scope (owner answer to Q12a, 2026-10-08).** Lockout applies to
+**all three roles uniformly** — admin, mentor, and intern. The
+existing 5-attempt / 15-minute / HTTP 423 lockout currently applies
+only to interns; it must be extended to admin and mentor.
+
+**Acceptance criteria.**
 
 1. Failed login attempts are logged with timestamp, username
    attempted, source IP, and outcome.
-2. The attempt log is viewable in the admin panel (new tab or new
-   filter in the audit log).
+2. The attempt log goes in the **existing Audit Log** with a new
+   filter (per Q12b recommendation, to be confirmed).
 3. Rate limiting is enforced and returns a clear HTTP status with a
    `{"message": ...}` body per D-S21.
 4. Successful logins are also logged (login events, not just
    failures).
 5. The lockout applies uniformly to admin, mentor, and intern roles —
-   not selectively.
+   not selectively. Threshold stays at **5 attempts / 15 minutes /
+   HTTP 423** (per Q12c recommendation, to be confirmed).
 
 ---
 
@@ -456,8 +462,20 @@ Withdrawn`)
 
 **Requirement.**
 Replace the boolean `IsActive` (or equivalent) with a status enum
-covering more than Active/Inactive. At minimum: Active, Inactive,
-Completed, Paused. Possibly also: Withdrawn, Graduated, Transferred.
+covering more than Active/Inactive. **Confirmed enum values (owner
+answer to Q13a, 2026-10-08):** `Upcoming, Active, Suspended, Completed,
+Withdrawn`.
+
+- Upcoming: account created, startDate in the future; no attendance.
+- Active: internship running (default once started); attendance allowed.
+- Suspended: temporarily paused (medical, leave of absence, admin hold);
+  no attendance.
+- Completed: endDate reached; internship finished normally; no attendance.
+- Withdrawn: left before scheduled end date; no attendance.
+
+`Transferred` is deliberately NOT an enum value — the transfer state
+machine (D-S24) handles that flow; a transferred intern remains `Active`
+in their new department.
 
 > Before implementation, confirm the current boolean property name on
 > the entity. `AGENTS.md` §10.7 forbids treating a guessed property name
@@ -484,10 +502,10 @@ The two concerns are distinct and must not be conflated:
   `Completed`: they can log in to view their history, but they cannot
   mark attendance or submit leave. In scope.
 
-Draft values below; **Q13a must be answered before REQ-10 is
-specified**, and the confirmed list governs.
+**Q13a answered 2026-10-08** — confirmed enum values govern. Q13b (who
+can set which status) remains open.
 
-**Open questions — see Q13a, Q13b.**
+**Open questions — see Q13b.**
 
 **Acceptance criteria (draft).**
 

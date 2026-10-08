@@ -81,6 +81,27 @@ This file records every confirmed decision for the PIA Interns App (InternSystem
 
 ---
 
+### D-14 Swipe-to-dismiss retired; Close button + backdrop tap adopted
+- Decision: Drop the drag-to-dismiss gesture on sheets. Dismissal is now the
+  themed `Close` button in the grab-header row, tapping the dark backdrop, and
+  the Android hardware back button.
+- Rationale (verified on emulator, admin Create Mentor sheet, RN 0.86 / Fabric
+  / Hermes release build): touches that START on the bare chrome strip above a
+  Modal's ScrollView never reach JS. Proven with all three gesture layers —
+  `PanResponder` (`onMoveShouldSetPanResponder` never engaged; sheet never
+  moved mid-drag), raw View responder handlers
+  (`onStartShouldSetResponder` on the sheet and on the exact handle wrapper;
+  `[swipe]` instrumentation, plain and Pressable alike, produced zero JS
+  events — Hermes release strips console, so the visible-probe pill also never
+  turned red), and `TouchableOpacity` wrapping the pill (a11y tree shows the
+  chrome nodes as non-clickable and a held press produced no state change).
+  Controls inside the ScrollView (fields, buttons, and the new remainder of
+  the header row placed as content) fire press events normally. All three
+  dismissal paths verified vto close the Create Mentor sheet on the emulator.
+- Status: implemented and device-verified (2026-10-06).
+
+---
+
 ## 2026-09-06 — Security posture on passwords
 
 ### D-S1 Admin cannot read passwords
@@ -576,3 +597,20 @@ deliberately **not** changed by this decision.
   deletes in descending dependency depth. This replaces a hard-coded
   14-table list, which broke the moment the transfer state machine
   began writing `ActivityLog` rows (`FK_ActivityLogs_Interns_TargetInternId`).
+
+---
+
+### D-S29 — ImageSharp 4.x major bump deferred
+
+- **Decision:** Stay on ImageSharp 3.1.12 rather than force the
+  4.1.2 major bump. The three High advisories on 3.1.12 affect
+  TIFF encoders and HistogramEqualization, which the codebase
+  does not invoke (verified by grep on 2026-10-08). ImageSharp 4.x
+  also changes the licence terms; a licence review is required
+  before any upgrade.
+- **Rationale:** A major-version bump of a security-critical
+  image library, with no test coverage on the affected path, to
+  fix advisories that are unreachable at runtime, is a worse risk
+  than the residuals. Tracked as W4.11 for evaluation when a
+  driving requirement appears.
+- **Status:** deferred.
