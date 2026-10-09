@@ -648,3 +648,54 @@ deliberately **not** changed by this decision.
   `ab.PIA.001`; §18 inline error screenshot
   `logs/screenshots/req-12-cnic-inline-error.png`). Email half
   deferred pending Q17.
+
+---
+
+### D-S30a — CNIC is required on create; email is not a uniqueness gate
+
+- **Decision:** Owner ruling 2026-10-10 replaces the REQ-12 "CNIC + email"
+  wording and everything it implies. New requirement text (verbatim):
+
+  > An intern account's CNIC is mandatory. It must be unique across
+  > active intern accounts. Duplicate CNICs are rejected with an error
+  > that names the owning account.
+  > Scope: CNIC is the only uniqueness gate.
+  > Email is NOT part of this requirement. Q17 is answered: CNIC only.
+  > Legacy null CNIC rows are grandfathered.
+  > A future edit that touches CNIC must supply one (email stays out).
+
+  Implementation:
+  - `[Required, MaxLength(50)]` on `AdminCreateInternRequest.CNIC` and
+    `MentorController.CreateInternRequest.CNIC` (plain attribute on the
+    record positional parameter — `[property: Required]` is **invalid**
+    for MVC record validation and crashes with `InvalidOperationException`
+    at model binding, discovered during this change).
+  - Explicit `BadRequest(new { message = "CNIC is required." })` checks in
+    `AdminController.CreateIntern` (immediately after the FullName check,
+    before the duplicate pre-check) and `MentorController.CreateIntern`
+    (before the StartDate check), so missing and duplicate CNIC are
+    distinct errors.
+  - `InvalidModelStateResponseFactory` in `Program.cs` now emits
+    `"<field> is required."` for any model-state error whose message ends
+    with " is required." (agreement-based rather than
+    `is RequiredAttribute`, which produced a CS0184 error). Missing,
+    empty, and whitespace CNIC all return HTTP 400
+    `{"message": "CNIC is required."}`.
+  - Client: admin + mentor Create Intern forms mark the CNIC field
+    `CNIC *` with placeholder `e.g. 42101-1234567-1` and return an
+    inline field error ("CNIC is required.") when it is blank on
+    submit; no toast (matches the other validation-error toasts which
+    are absent for field-level failures).
+- **Rationale:** The ruling makes CNIC the single uniqueness gate — one
+  person may legitimately hold many emails, so email uniqueness would be
+  a false constraint; and a mandatory, non-null CNIC is what makes the
+  filtered unique index meaningful. Email has no column and no field and
+  is explicitly out of scope.
+- **Status:** Implemented and verified 2026-10-10 — 3 new tests in
+  `CnicUniquenessTests.cs` (missing/empty/whitespace CNIC →
+  `CNIC is required.`); curl E2E 400 for all three cases; §18 emulator
+  run (Create Intern with empty CNIC → inline `CNIC is required.` under
+  the field, zero toasts, no row created; screenshot
+  `logs/screenshots/req-12-cnic-required.png`); duplicate-CNIC path
+  re-checked and still 409; probe intern 3242 removed after the run.
+  TODO 12b cancelled (email uniqueness). Q17 closed as a decision.
