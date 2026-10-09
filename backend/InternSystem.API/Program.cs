@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
@@ -43,15 +44,22 @@ builder.Services.AddControllers()
         // controllers' own validation errors so screens can show e.response.data.message.
         o.InvalidModelStateResponseFactory = context =>
         {
-            var first = context.ModelState
+            var errors = context.ModelState
                 .Where(kvp => kvp.Value?.Errors.Count > 0)
-                .Select(kvp => kvp.Key)
-                .OrderBy(k => k.StartsWith("$.", StringComparison.Ordinal) ? 0 : 1)
-                .FirstOrDefault();
-            var field = first?.TrimStart('$', '.');
+                .OrderBy(kvp => kvp.Key.StartsWith("$.", StringComparison.Ordinal) ? 0 : 1)
+                .ToList();
+            var first = errors.Count > 0 ? errors[0] : default;
+            var field = first.Key?.TrimStart('$', '.');
+            // A [Required] failure is a missing field, not a malformed one. Non-throwing
+            // validators leave ModelError.Exception null, so the only signal is the
+            // standard message shape "... required." (D-S30a).
+            var isRequired = first.Value?.Errors.Any(e =>
+                e.ErrorMessage.EndsWith(" is required.", StringComparison.OrdinalIgnoreCase)) == true;
             var message = string.IsNullOrEmpty(field)
                 ? "Invalid request. Check the submitted fields and try again."
-                : $"Invalid value for '{field}'. Check the submitted fields and try again.";
+                : isRequired
+                    ? $"{field} is required."
+                    : $"Invalid value for '{field}'. Check the submitted fields and try again.";
             return new BadRequestObjectResult(new { message });
         };
     });
@@ -283,6 +291,12 @@ using (var scope = app.Services.CreateScope())
         );
         IF OBJECT_ID('IdempotencyRecords') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_IdempotencyRecords_UserKey' AND object_id = OBJECT_ID('IdempotencyRecords'))
         CREATE UNIQUE INDEX IX_IdempotencyRecords_UserKey ON IdempotencyRecords (UserId, [Key]);
+
+        IF OBJECT_ID('Interns') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_Interns_Cnic' AND object_id = OBJECT_ID('Interns'))
+        ALTER TABLE Interns ALTER COLUMN CNIC nvarchar(20) NULL;
+
+        IF OBJECT_ID('Interns') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_Interns_Cnic' AND object_id = OBJECT_ID('Interns'))
+        CREATE UNIQUE INDEX UX_Interns_Cnic ON Interns(Cnic) WHERE Cnic IS NOT NULL AND Cnic <> '';
     ");
 }
 

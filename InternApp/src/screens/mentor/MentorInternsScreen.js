@@ -193,6 +193,7 @@ export default function MentorInternsScreen({navigation}) {
 
   const submitCreate = async () => {
     if (!createForm.fullName.trim() || !createForm.password.trim()) { showToast('Full name and password are required.', 'error'); return; }
+    if (!createForm.cnic.trim()) { showToast('CNIC is required.', 'error'); return; }
     if (createForm.cnic.trim() && !/^\d{13}$/.test(createForm.cnic.replace(/-/g, ''))) { showToast('CNIC must be 13 digits.', 'error'); return; }
     if (createStart < new Date(new Date().setHours(0,0,0,0))) { showToast('Start date cannot be in the past.', 'error'); return; }
     if (createStart >= createEnd) { showToast('End date must be after the start date.', 'error'); return; }
@@ -482,8 +483,8 @@ export default function MentorInternsScreen({navigation}) {
               </View>
 
               <View style={styles.modalField}>
-                <Text style={styles.fieldLabel}>CNIC</Text>
-                <TextInput style={styles.fieldInput} placeholder="42101-1234567-8" placeholderTextColor={colors.textMuted} keyboardType="numeric" value={createForm.cnic} onChangeText={v => setCreateForm(f => ({...f, cnic: v}))} />
+                <Text style={styles.fieldLabel}>CNIC *</Text>
+                <TextInput style={styles.fieldInput} placeholder="e.g. 42101-1234567-1" placeholderTextColor={colors.textMuted} keyboardType="numeric" value={createForm.cnic} onChangeText={v => setCreateForm(f => ({...f, cnic: v}))} />
               </View>
 
               <View style={styles.modalField}>

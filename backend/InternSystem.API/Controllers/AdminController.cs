@@ -662,6 +662,10 @@ public class AdminController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(req.FullName))
             return BadRequest(new { message = "Full name is required" });
+        // CNIC is required on create (D-S30a). Checked before the duplicate
+        // pre-check so a missing CNIC and a duplicate CNIC are distinct errors.
+        if (string.IsNullOrWhiteSpace(req.CNIC))
+            return BadRequest(new { message = "CNIC is required." });
         if (string.IsNullOrWhiteSpace(req.Password))
             return BadRequest(new { message = "Password is required" });
         var createPolicyError = PasswordPolicy.Validate(req.Password);
@@ -678,6 +682,21 @@ public class AdminController : ControllerBase
             return BadRequest(new { message = "Start date cannot be in the past" });
         if (req.ShiftId.HasValue && !await _db.Shifts.AnyAsync(s => s.Id == req.ShiftId && (s.IsCompanyWide || s.DepartmentId == mentor.DepartmentId)))
             return BadRequest(new { message = "Invalid shift for this department" });
+
+        var normalizedCnic = string.IsNullOrWhiteSpace(req.CNIC) ? null : req.CNIC.Trim();
+        if (normalizedCnic != null)
+        {
+            var duplicateOwner = await (from internRow in _db.Interns
+                                        join userRow in _db.Users on internRow.UserId equals userRow.Id
+                                        where internRow.CNIC == normalizedCnic
+                                        select userRow.Username).FirstOrDefaultAsync();
+            if (duplicateOwner != null)
+                return Conflict(new
+                {
+                    message = $"This CNIC is already registered to another intern (username: {duplicateOwner}). " +
+                              "To re-hire this person, use the Start New Period action on their account."
+                });
+        }
 
         string username;
         var internDeptId = (req.DepartmentId.HasValue && req.DepartmentId.Value > 0) ? req.DepartmentId.Value : mentor.DepartmentId;
@@ -711,7 +730,7 @@ public class AdminController : ControllerBase
             DepartmentId = internDeptId,
             ShiftId = req.ShiftId,
             FullName = req.FullName,
-            CNIC = req.CNIC,
+            CNIC = normalizedCnic,
             RegNo = regNo,
             University = req.University,
             Degree = req.Degree,
@@ -2592,7 +2611,7 @@ public record InitiateTransferRequest(int ToDepartmentId, [MaxLength(1000)] stri
 public record ResetPasswordRequest([MaxLength(128)] string NewPassword);
 public record CreateDepartmentRequest([MaxLength(100)] string Name, [MaxLength(20)] string Code, double? Latitude, double? Longitude, double? RadiusMeters, [MaxLength(300)] string? Address = null);
 public record AdminUpdateDepartmentRequest([MaxLength(100)] string? Name, [MaxLength(20)] string? Code, double? Latitude, double? Longitude, double? RadiusMeters, [MaxLength(300)] string? Address = null);
-public record AdminCreateInternRequest([MaxLength(100)] string? Username, [MaxLength(128)] string Password, [MaxLength(200)] string FullName, [MaxLength(50)] string? CNIC,
+public record AdminCreateInternRequest([MaxLength(100)] string? Username, [MaxLength(128)] string Password, [MaxLength(200)] string FullName, [Required, MaxLength(50)] string? CNIC,
     [MaxLength(200)] string? University, [MaxLength(200)] string? Degree, InternGender Gender, DateTime StartDate, DateTime EndDate, int MentorId, int? DepartmentId = null, int? ShiftId = null);
 public record AdminUpdateInternRequest([MaxLength(100)] string? Username, [MaxLength(128)] string? Password, [MaxLength(200)] string? FullName, [MaxLength(50)] string? CNIC,
     [MaxLength(200)] string? University, [MaxLength(200)] string? Degree, InternGender? Gender, DateTime? StartDate, DateTime? EndDate,

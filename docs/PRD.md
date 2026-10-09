@@ -37,7 +37,7 @@ identifiers. Folding them in is tracked separately and is not part of this pass.
 | REQ-09 | Database script for replication to GitHub | Informational | answered in §REQ-09 |
 | REQ-10 | Account status enums: add Completed, Paused, etc. | Medium | `[TODO]` — Q13a answered (enum set); scope per §REQ-10 |
 | REQ-11 | Restart an old account for a new internship period | High | `[NEEDS-ANSWER]` — Q14a–Q16 |
-| REQ-12 | CNIC and email uniqueness (one account per person) | High | `[NEEDS-ANSWER]` — Q17, Q18 |
+| REQ-12 | CNIC uniqueness + mandatory CNIC on create (one account per person) | High | `[x]` — CNIC mandatory + unique, §18-verified 2026-10-08 & 2026-10-10 (D-S30, D-S30a); email out of scope (Q17 answered 2026-10-10) |
 | REQ-13 | Button sizing: proper buffers and spacing across all pages | Medium | `[NEEDS-ANSWER]` — Q19 |
 | REQ-14 | Comprehensive dashboards with historical stats and comparisons | Medium-High | `[NEEDS-ANSWER]` — Q20a–Q22 |
 
@@ -586,32 +586,72 @@ attaching:
 
 ## REQ-12 — CNIC and email uniqueness (one account per person)
 
-**Status:** `[NEEDS-ANSWER]` (Q17, Q18)
+**Status:** `[x]` — implemented and verified 2026-10-10 (D-S30 + D-S30a).
 **Priority:** High (data integrity)
 **Category:** Account creation
 **Overlaps:** REQ-11 (which reuses the same account, so uniqueness is
 not violated on re-hire)
 
+**[UPDATED] 2026-10-08** — previous state: `[NEEDS-ANSWER]` (Q17, Q18
+open, no implementation). New state: CNIC uniqueness enforced in DB
+(`UX_Interns_Cnic` filtered unique index) and API (`POST /admin/interns`
+returns 409 with the Q18 message); email uniqueness deferred by owner
+until the email field's location is specified (`Users.Email` does not
+exist). Decision: D-S30.
+
+**[UPDATED] 2026-10-10** — previous state: `[PARTIAL]`, email deferred
+via Q17. New state: **email is removed from this requirement entirely.**
+Q17 is answered as a decision, not a deferral: CNIC is the only
+uniqueness gate — one person may legitimately have many emails. CNIC is
+now **mandatory on create** (`[Required]` + explicit action check on
+`AdminController.CreateIntern` and `MentorController.CreateIntern`,
+`InvalidModelStateResponseFactory` emits `"{field} is required."` for
+`RequiredAttribute` failures), grandfathered legacy null-CNIC rows remain
+editable, and a missing/empty/whitespace CNIC returns HTTP 400
+`{"message": "CNIC is required."}`, distinct from the duplicate 409.
+Decisions: D-S30 + D-S30a.
+
 **Requirement.**
-An intern cannot be created with a CNIC or email that already exists
-on another account. Enforced at the database level (unique constraint)
-and at the API level (clear error message).
+> An intern account's CNIC is mandatory. It must be unique across active
+> intern accounts. Duplicate CNICs are rejected with an error that names
+> the owning account.
+> Scope: CNIC is the only uniqueness gate.
+> Email is NOT part of this requirement. Q17 is answered: CNIC only.
+> Legacy null CNIC rows are grandfathered.
+> A future edit that touches CNIC must supply one (email stays out).
 
 **Re-hire does not violate uniqueness.** Because REQ-11 repurposes the
 existing account, one person still has exactly one account regardless
 of how many periods they have completed.
 
-**Open questions — see Q17, Q18.**
+**Open questions — Q17 answered (owner 2026-10-10: CNIC only, decision),
+Q18 answered.**
 
-**Acceptance criteria (draft).**
+**Acceptance criteria.**
 
-1. Creating a second intern with the same CNIC fails with a clear
-   error naming the existing account.
-2. Same for email.
-3. The error message is actionable: "This CNIC is already registered
+1. [x] Creating a second intern with the same CNIC fails with a clear
+   error naming the existing account. — verified via curl E2E
+   (HTTP 409 naming `ab.PIA.001`) and on emulator (inline error under
+   the CNIC field, screenshot `logs/screenshots/req-12-cnic-inline-error.png`),
+   2026-10-08. Regression-checked 2026-10-10 (still 409 after the
+   mandatory-CNIC change).
+2. [ ] Email uniqueness — **removed from scope** (owner decision
+   2026-10-10, D-S30a). Email is not a uniqueness gate; no email column
+   is introduced or planned for this.
+3. [x] Creating an intern without a CNIC fails with the explicit message
+   `{"message": "CNIC is required."}` (HTTP 400) — verified via curl
+   (missing, empty, and whitespace CNIC), 3 tests in
+   `CnicUniquenessTests.cs`, and on emulator (inline error under the
+   CNIC field, no toast, no row created — screenshot
+   `logs/screenshots/req-12-cnic-required.png`), 2026-10-10.
+4. [x] The error message is actionable: "This CNIC is already registered
    to another intern (username: xxx). To re-hire this person, use the
-   Start New Period action on their account."
-4. Re-hire (REQ-11) works without tripping the uniqueness constraint.
+   Start New Period action on their account." — implemented verbatim at
+   `AdminController.cs`.
+5. [ ] Re-hire (REQ-11) works without tripping the uniqueness
+   constraint. — blocked on REQ-11 (still `[NEEDS-ANSWER]`); the index
+   filter allows multiple NULL CNICs but re-hire must reuse the row, not
+   insert a second one.
 
 ---
 
@@ -1173,11 +1213,31 @@ admin screen? A modal on the completed-interns list? Confirm.
 
 Both should probably be unique. Confirm.
 
+**[ANSWERED] 2026-10-10 (owner — decision, supersedes PARTIAL):**
+"CNIC is the only uniqueness gate. Email is NOT part of this
+requirement." Ruling text (verbatim):
+
+> An intern account's CNIC is mandatory. It must be unique across active
+> intern accounts. Duplicate CNICs are rejected with an error that names
+> the owning account.
+> Scope: CNIC is the only uniqueness gate.
+> Email is NOT part of this requirement. Q17 is answered: CNIC only.
+> Legacy null CNIC rows are grandfathered.
+> A future edit that touches CNIC must supply one (email stays out).
+
+CNIC is now mandatory on create (D-S30a); no email column is introduced
+or planned. This question is closed.
+
 ## Q18 (REQ-12) — What message should the admin see?
 
 Draft: "This CNIC is already registered (username: xxx). To re-hire
 this person, use the Start New Period action on their account." —
 acceptable?
+
+**[ANSWERED] 2026-10-08:** accepted with the wording refined to "This
+CNIC is already registered **to another intern** (username: xxx)…",
+implemented verbatim at `AdminController.cs:692` and shown inline
+under the CNIC field in the Create Intern modal.
 
 ## Q19 (REQ-13) — Any specific buttons you've seen clip?
 

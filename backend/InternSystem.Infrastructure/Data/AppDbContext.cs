@@ -73,9 +73,14 @@ public class AppDbContext : DbContext
             e.Property(i => i.FaceEmbeddingJson).HasColumnType("nvarchar(max)");
     e.Property(i => i.FaceEnrollmentStatus).HasConversion<string>();
             e.Property(i => i.RegNo).HasMaxLength(40);
+            e.Property(i => i.CNIC).HasMaxLength(20);
             e.HasIndex(i => i.RegNo)
                 .IsUnique()
                 .HasFilter("[RegNo] IS NOT NULL AND [RegNo] <> ''");
+            e.HasIndex(i => i.CNIC)
+                .IsUnique()
+                .HasFilter("[CNIC] IS NOT NULL AND [CNIC] <> ''")
+                .HasDatabaseName("UX_Interns_Cnic");
             e.HasMany(i => i.FaceEnrollmentRecords)
                 .WithOne(r => r.Intern)
                 .HasForeignKey(r => r.InternId)

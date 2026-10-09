@@ -35,6 +35,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\InternSystem.Core\InternSystem.Core.csproj" />
     <ProjectReference Include="..\..\InternSystem.Infrastructure\InternSystem.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\InternSystem.API\InternSystem.API.csproj" />
   </ItemGroup>
 
 </Project>
