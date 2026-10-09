@@ -11,6 +11,7 @@ import {useAppTheme} from '../../theme';
 import ScreenBackground from '../../components/ScreenBackground';
 import AppHeader from '../../components/AppHeader';
 import Icon from '../../components/Icon';
+import InternAvatar from '../../components/InternAvatar';
 import Spinner from '../../components/Spinner';
 import Dropdown from '../../components/Dropdown';
 import PasswordInput from '../../components/PasswordInput';
@@ -259,7 +260,7 @@ export default function MentorInternsScreen({navigation}) {
         ) : visible.map(i => (
           <TouchableOpacity key={i.id} style={styles.card} onPress={() => openDetail(i)}>
             <View style={styles.cardTop}>
-              <View style={styles.avatarBox}><Text style={styles.avatarText}>{i.fullName[0]}</Text></View>
+              <View style={styles.avatarBox}><InternAvatar name={i.fullName} thumbPath={i.photoThumbPath} size={44} /></View>
               <View style={{flex:1}}>
                 <Text style={styles.name}>{i.fullName}</Text>
                 <Text style={styles.sub}>@{i.username} • {i.department}</Text>
@@ -300,6 +301,9 @@ export default function MentorInternsScreen({navigation}) {
       {/* Detail Modal */}
       <SwipeableModal visible={!!detailTarget} transparent overlayStyle={styles.modalOverlay} sheetStyle={styles.modalContent} scrollable={false} onRequestClose={() => setDetailTarget(null)}>
             <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.detailAvatarWrap}>
+                <InternAvatar name={detailTarget?.fullName} thumbPath={detailData?.photoThumbPath || detailTarget?.photoThumbPath} size={64} />
+              </View>
               <View style={styles.detailHeader}>
                 <Text style={styles.modalTitle}>{detailTarget?.fullName}</Text>
                 <TouchableOpacity onPress={() => setDetailTarget(null)}><Icon name="close" size={18} color={colors.textSecondary} /></TouchableOpacity>
@@ -548,8 +552,7 @@ const makeStyles = colors => StyleSheet.create({
   emptyBox:{alignItems:'center', paddingVertical:60}, emptyText:{color:colors.textSecondary, fontSize:15, marginTop:10},
   card:{backgroundColor:colors.surface, margin:12, marginBottom:4, borderRadius:14, padding:14, borderWidth:1, borderColor:colors.border},
   cardTop:{flexDirection:'row', alignItems:'center', marginBottom:8},
-  avatarBox:{width:44, height:44, borderRadius:22, backgroundColor:colors.primary, justifyContent:'center', alignItems:'center', marginRight:12},
-  avatarText:{color:'#fff', fontSize:18, fontWeight:'700'},
+  avatarBox:{width:44, height:44, borderRadius:22, justifyContent:'center', alignItems:'center', marginRight:12},
   name:{color:colors.text, fontSize:15, fontWeight:'700'},
   sub:{color:colors.textSecondary, fontSize:12},
   sub2:{color:colors.textMuted, fontSize:11},
@@ -562,6 +565,7 @@ const makeStyles = colors => StyleSheet.create({
   modalContent:{backgroundColor:colors.surface, borderTopLeftRadius:24, borderTopRightRadius:24, padding:24, maxHeight:'88%'},
   modalTitle:{color:colors.text, fontSize:18, fontWeight:'700', marginBottom:4},
   subtitle:{color:colors.textMuted, fontSize:12, marginBottom:16},
+  detailAvatarWrap:{alignItems:'center', marginBottom:10},
   detailHeader:{flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom:12},
   detailRow:{flexDirection:'row', justifyContent:'space-between', paddingVertical:10, borderTopWidth:1, borderTopColor:colors.border},
   detailLabel:{color:colors.textSecondary, fontSize:13},

@@ -11,6 +11,7 @@ import {useAppTheme} from '../../theme';
 import ScreenBackground from '../../components/ScreenBackground';
 import AppHeader from '../../components/AppHeader';
 import Icon from '../../components/Icon';
+import InternAvatar from '../../components/InternAvatar';
 import Spinner from '../../components/Spinner';
 import FilterChips from '../../components/FilterChips';
 import CenteredModalCard from '../../components/CenteredModalCard';
@@ -191,7 +192,7 @@ export default function DocumentsApprovalScreen({navigation}) {
                 </TouchableOpacity>
               )}
               <View style={styles.avatarCircle}>
-                <Text style={styles.avatarText}>{item.internName[0]}</Text>
+                <InternAvatar name={item.internName} thumbPath={item.photoThumbPath} size={34} />
               </View>
               <View style={styles.cardInfo}>
                 <Text style={styles.cardName}>{item.internName}</Text>
@@ -289,8 +290,7 @@ const makeStyles = colors => StyleSheet.create({
   checkboxOn: {backgroundColor:colors.primary, borderColor:colors.primary},
   requestCard: {backgroundColor:colors.surface, margin:12, marginBottom:6, borderRadius:12, padding:12, borderWidth:1, borderColor:colors.border},
   cardTop: {flexDirection:'row', alignItems:'center', marginBottom:8},
-  avatarCircle: {width:34, height:34, borderRadius:17, backgroundColor:colors.primary, justifyContent:'center', alignItems:'center', marginRight:10},
-  avatarText: {color:'#fff', fontSize:15, fontWeight:'700'},
+  avatarCircle: {width:34, height:34, borderRadius:17, justifyContent:'center', alignItems:'center', marginRight:10},
   cardInfo: {flex:1},
   cardName: {color:colors.text, fontSize:14, fontWeight:'700'},
   cardSub: {color:colors.textSecondary, fontSize:12},

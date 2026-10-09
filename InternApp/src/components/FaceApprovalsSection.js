@@ -8,6 +8,7 @@ import {showToast} from '../components/AppToast';
 import {showConfirm} from '../components/AppConfirm';
 import {useAppTheme} from '../theme';
 import Icon from '../components/Icon';
+import InternAvatar from '../components/InternAvatar';
 import FilterChips from '../components/FilterChips';
 import Dropdown from '../components/Dropdown';
 import Spinner from './Spinner';
@@ -122,12 +123,13 @@ export default function FaceApprovalsSection({base}) {
           const b = badge(item.faceEnrollmentStatus);
           const isPending = item.faceEnrollmentStatus === 'Pending';
           const busyThis = busy === `${item.id}-approve` || busy === `${item.id}-reject` || busy === `${item.id}-delete`;
+          const photo = item.photoPath || item.photoThumbPath;
           return (
-            <TouchableOpacity key={item.id} style={styles.card} activeOpacity={0.7} onPress={() => { if (item.photoPath) setViewerUri(fileUrl(item.photoPath)); }}>
+            <TouchableOpacity key={item.id} style={styles.card} activeOpacity={0.7} onPress={() => { if (photo) setViewerUri(fileUrl(photo)); }}>
               <View style={styles.cardTop}>
-                {item.photoPath ? (
-                  <TouchableOpacity id={`enroll-photo-${item.id}`} onPress={() => setViewerUri(fileUrl(item.photoPath))}>
-                    <Image source={{uri: fileUrl(item.photoPath)}} style={styles.avatarBox} />
+                {photo ? (
+                  <TouchableOpacity id={`enroll-photo-${item.id}`} onPress={() => setViewerUri(fileUrl(photo))}>
+                    <InternAvatar name={item.fullName} thumbPath={photo} size={44} />
                   </TouchableOpacity>
                 ) : (
                   <View style={styles.avatarBox}><Text style={styles.avatarText}>{item.fullName[0]}</Text></View>

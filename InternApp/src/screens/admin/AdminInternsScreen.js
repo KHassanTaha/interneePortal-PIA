@@ -11,6 +11,7 @@ import {safePeriod} from '../../utils/dates';
 import AppHeader from '../../components/AppHeader';
 import Dropdown from '../../components/Dropdown';
 import Icon from '../../components/Icon';
+import InternAvatar from '../../components/InternAvatar';
 import Spinner from '../../components/Spinner';
 import PasswordInput from '../../components/PasswordInput';
 import DateField from '../../components/DateField';
@@ -333,7 +334,7 @@ export default function AdminInternsScreen({navigation}) {
         ) : visible.map(i => (
           <TouchableOpacity key={i.id} id={`intern-card-${i.id}`} style={styles.card} onPress={() => openInternDetail(i)}>
             <View style={styles.cardTop}>
-              <View style={styles.avatarBox}><Text style={styles.avatarText}>{i.fullName[0]}</Text></View>
+              <View style={styles.avatarBox}><InternAvatar name={i.fullName} thumbPath={i.photoThumbPath} size={44} /></View>
               <View style={styles.cardInfo}>
                 <Text style={styles.name}>{i.fullName}</Text>
                 <Text style={styles.sub}>{i.department} • {i.mentor}</Text>
@@ -431,11 +432,7 @@ export default function AdminInternsScreen({navigation}) {
               </TouchableOpacity>
             </View>
             <View style={styles.detailAvatar}>
-              {detailTarget?.photoThumbPath ? (
-                <Image source={{uri: fileUrl(detailTarget.photoThumbPath)}} style={styles.detailAvatar} resizeMode="cover" />
-              ) : (
-                <Text style={styles.detailAvatarText}>{detailTarget?.fullName?.[0]}</Text>
-              )}
+              <InternAvatar name={detailTarget?.fullName} thumbPath={detailTarget?.photoThumbPath} size={64} />
             </View>
             <Text style={styles.detailName}>{detailTarget?.fullName}</Text>
             <Text style={styles.detailUsername}>@{detailTarget?.username}</Text>
@@ -754,8 +751,7 @@ const makeStyles = colors => StyleSheet.create({
   emptyText: {color:colors.textSecondary, fontSize:15, marginTop:10},
   card:{backgroundColor:colors.surface, margin:12, marginBottom:4, borderRadius:14, padding:14, borderWidth:1, borderColor:colors.border},
   cardTop:{flexDirection:'row', alignItems:'center', marginBottom:8},
-  avatarBox:{width:44, height:44, borderRadius:22, backgroundColor:colors.primary, justifyContent:'center', alignItems:'center', marginRight:12},
-  avatarText:{color:'#fff', fontSize:18, fontWeight:'700'},
+  avatarBox:{width:44, height:44, borderRadius:22, justifyContent:'center', alignItems:'center', marginRight:12},
   cardInfo:{flex:1},
   name:{color:colors.text, fontSize:15, fontWeight:'700'},
   sub:{color:colors.textSecondary, fontSize:12},
@@ -783,8 +779,7 @@ const makeStyles = colors => StyleSheet.create({
   // Detail modal
   detailHeader: {flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom:12},
   closeBtn: {padding:4},
-  detailAvatar: {width:64, height:64, borderRadius:32, backgroundColor:colors.primary, justifyContent:'center', alignItems:'center', alignSelf:'center', marginBottom:10},
-  detailAvatarText: {color:'#fff', fontSize:26, fontWeight:'700'},
+  detailAvatar: {width:64, height:64, borderRadius:32, justifyContent:'center', alignItems:'center', alignSelf:'center', marginBottom:10},
   detailName: {color:colors.text, fontSize:18, fontWeight:'700', textAlign:'center'},
   detailUsername: {color:colors.textMuted, fontSize:13, textAlign:'center', marginBottom:16},
   detailRow: {flexDirection:'row', justifyContent:'space-between', paddingVertical:10, borderTopWidth:1, borderTopColor:colors.border},
