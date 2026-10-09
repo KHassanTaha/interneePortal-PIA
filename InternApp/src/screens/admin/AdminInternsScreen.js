@@ -183,6 +183,9 @@ export default function AdminInternsScreen({navigation}) {
     if (passwordRequired && !f.mentorId) { showToast('Select a mentor.', 'error'); return false; }
     if (passwordRequired && !f.startDate.trim()) { showToast('Start date is required (YYYY-MM-DD).', 'error'); return false; }
     if (passwordRequired && !f.endDate.trim()) { showToast('End date is required (YYYY-MM-DD).', 'error'); return false; }
+    // Required on create only (edit keeps legacy null rows editable). Inline
+    // error, not a toast — the message belongs under the field.
+    if (passwordRequired && !f.cnic.trim()) { setCnicError('CNIC is required.'); return false; }
     if (f.startDate.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(f.startDate.trim())) { showToast('Start date must use format YYYY-MM-DD.', 'error'); return false; }
     if (f.endDate.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(f.endDate.trim())) { showToast('End date must use format YYYY-MM-DD.', 'error'); return false; }
     if (f.startDate.trim() && f.endDate.trim() && new Date(f.endDate.trim()) < new Date(f.startDate.trim())) { showToast('End date cannot be before start date.', 'error'); return false; }
@@ -688,8 +691,8 @@ function InternFormFields({styles, colors, form, setForm, deptOptions, mentorOpt
         <PasswordInput id="intern-password" style={styles.fieldInput} placeholder={isEdit ? 'Leave blank to keep current' : 'Temporary password'} placeholderTextColor={colors.textMuted} value={form.password} onChangeText={v => set('password', v)} />
       </View>
       <View style={styles.modalField}>
-        <Text style={styles.fieldLabel}>CNIC</Text>
-        <TextInput id="intern-cnic" style={styles.fieldInput} placeholder="42101-1234567-8" placeholderTextColor={colors.textMuted} value={form.cnic} onChangeText={onCnicChange} />
+        <Text style={styles.fieldLabel}>{isEdit ? 'CNIC' : 'CNIC *'}</Text>
+        <TextInput id="intern-cnic" style={styles.fieldInput} placeholder={isEdit ? '42101-1234567-8' : 'e.g. 42101-1234567-1'} placeholderTextColor={colors.textMuted} value={form.cnic} onChangeText={onCnicChange} />
         {cnicError ? (
           <View style={styles.inlineFieldError}>
             <Icon name="alert" size={13} color={colors.error} />
