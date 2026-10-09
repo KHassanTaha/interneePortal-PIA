@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
@@ -43,15 +44,22 @@ builder.Services.AddControllers()
         // controllers' own validation errors so screens can show e.response.data.message.
         o.InvalidModelStateResponseFactory = context =>
         {
-            var first = context.ModelState
+            var errors = context.ModelState
                 .Where(kvp => kvp.Value?.Errors.Count > 0)
-                .Select(kvp => kvp.Key)
-                .OrderBy(k => k.StartsWith("$.", StringComparison.Ordinal) ? 0 : 1)
-                .FirstOrDefault();
-            var field = first?.TrimStart('$', '.');
+                .OrderBy(kvp => kvp.Key.StartsWith("$.", StringComparison.Ordinal) ? 0 : 1)
+                .ToList();
+            var first = errors.Count > 0 ? errors[0] : default;
+            var field = first.Key?.TrimStart('$', '.');
+            // A [Required] failure is a missing field, not a malformed one. Non-throwing
+            // validators leave ModelError.Exception null, so the only signal is the
+            // standard message shape "... required." (D-S30a).
+            var isRequired = first.Value?.Errors.Any(e =>
+                e.ErrorMessage.EndsWith(" is required.", StringComparison.OrdinalIgnoreCase)) == true;
             var message = string.IsNullOrEmpty(field)
                 ? "Invalid request. Check the submitted fields and try again."
-                : $"Invalid value for '{field}'. Check the submitted fields and try again.";
+                : isRequired
+                    ? $"{field} is required."
+                    : $"Invalid value for '{field}'. Check the submitted fields and try again.";
             return new BadRequestObjectResult(new { message });
         };
     });

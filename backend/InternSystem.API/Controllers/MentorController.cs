@@ -523,6 +523,10 @@ public class MentorController : ControllerBase
             }
         }
 
+        // CNIC is required on create (D-S30a).
+        if (string.IsNullOrWhiteSpace(req.CNIC))
+            return BadRequest(new { message = "CNIC is required." });
+
         if (req.StartDate.Date < DateTime.Today)
             return BadRequest(new { message = "Start date cannot be in the past" });
         if (req.ShiftId.HasValue && !await _db.Shifts.AnyAsync(s => s.Id == req.ShiftId && (s.IsCompanyWide || s.DepartmentId == mentor.DepartmentId)))
@@ -2302,7 +2306,7 @@ public class MentorController : ControllerBase
 }
 
 public record CreateInternRequest(
-    [MaxLength(100)] string? Username, [MaxLength(128)] string Password, [MaxLength(200)] string FullName, [MaxLength(50)] string? CNIC,
+    [MaxLength(100)] string? Username, [MaxLength(128)] string Password, [MaxLength(200)] string FullName, [Required, MaxLength(50)] string? CNIC,
     [MaxLength(200)] string? University, [MaxLength(200)] string? Degree, InternGender Gender, DateTime StartDate, DateTime EndDate, int? DepartmentId = null, int? ShiftId = null,
     double? OfficeLatitude = null, double? OfficeLongitude = null);
 public record AssignTaskRequest(int InternId, [MaxLength(300)] string Title, [MaxLength(2000)] string Description, DateTime? Deadline);

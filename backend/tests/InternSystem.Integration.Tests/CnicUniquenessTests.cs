@@ -1,5 +1,7 @@
+using InternSystem.API.Controllers;
 using InternSystem.Core.Entities;
 using InternSystem.Infrastructure.Data;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -17,10 +19,14 @@ namespace InternSystem.Integration.Tests;
 /// verified end-to-end against a running API because WebApplicationFactory
 /// remains blocked (W2.9).
 ///
-/// Email uniqueness is deliberately NOT tested here: there is no email column
-/// on intern accounts, and the owner deferred that half of REQ-12 on
-/// 2026-10-08 until the email location is specified. When it is, these tests
-/// gain a mirrored set for the new column.
+/// CNIC is also required on create (D-S30a). The three required tests invoke
+/// the action directly for the same W2.9 reason — they assert the action's
+/// own guard, which is what the HTTP pipeline falls through to for a
+/// whitespace value (the [Required] attribute short-circuits missing/empty
+/// ones one layer earlier, in the model-state factory).
+///
+/// Email is not part of this contract: the owner closed Q17 on 2026-10-08.
+/// CNIC is the only uniqueness gate; email is not a stable identity key.
 /// </summary>
 [Collection(SqlServerCollection.Name)]
 public class CnicUniquenessTests : IAsyncLifetime
@@ -65,6 +71,62 @@ public class CnicUniquenessTests : IAsyncLifetime
     {
         await using var context = _database.CreateContext();
         await AddInternAsync(context, cnic);
+    }
+
+    [Fact]
+    public async Task Create_fails_when_cnic_is_missing()
+    {
+        var result = await CreateInternDirectlyAsync(cnic: null);
+        AssertRequiredCnic(result);
+    }
+
+    [Fact]
+    public async Task Create_fails_when_cnic_is_empty()
+    {
+        var result = await CreateInternDirectlyAsync(cnic: "");
+        AssertRequiredCnic(result);
+    }
+
+    [Fact]
+    public async Task Create_fails_when_cnic_is_whitespace()
+    {
+        var result = await CreateInternDirectlyAsync(cnic: "   ");
+        AssertRequiredCnic(result);
+    }
+
+    /// <summary>
+    /// Invokes AdminController.CreateIntern with the value under test. The
+    /// controller returns before touching any injected service, so the
+    /// unused dependencies are null — WebApplicationFactory is still blocked
+    /// (W2.9) and this keeps the test on the fixture's isolated database.
+    /// </summary>
+    private async Task<IActionResult> CreateInternDirectlyAsync(string? cnic)
+    {
+        await using var context = _database.CreateContext();
+        var controller = new AdminController(context, null!, null!, null!, null!, null!, null!, null!);
+        var req = new AdminCreateInternRequest(
+            Username: null,
+            Password: "Passw0rd!",
+            FullName: "Cnic Required Intern",
+            CNIC: cnic,
+            University: null,
+            Degree: null,
+            Gender: InternGender.Male,
+            StartDate: new DateTime(2026, 10, 15),
+            EndDate: new DateTime(2026, 10, 31),
+            MentorId: 1);
+        return await controller.CreateIntern(req);
+    }
+
+    /// <summary>
+    /// Asserts the action rejected the request with the field-specific
+    /// required message, not a generic invalid-value envelope.
+    /// </summary>
+    private static void AssertRequiredCnic(IActionResult result)
+    {
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        var message = badRequest.Value?.GetType().GetProperty("message")?.GetValue(badRequest.Value) as string;
+        Assert.Equal("CNIC is required.", message);
     }
 
     private async Task AddInternAsync(AppDbContext context, string? cnic)

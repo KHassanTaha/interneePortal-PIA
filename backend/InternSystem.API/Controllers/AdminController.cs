@@ -662,6 +662,10 @@ public class AdminController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(req.FullName))
             return BadRequest(new { message = "Full name is required" });
+        // CNIC is required on create (D-S30a). Checked before the duplicate
+        // pre-check so a missing CNIC and a duplicate CNIC are distinct errors.
+        if (string.IsNullOrWhiteSpace(req.CNIC))
+            return BadRequest(new { message = "CNIC is required." });
         if (string.IsNullOrWhiteSpace(req.Password))
             return BadRequest(new { message = "Password is required" });
         var createPolicyError = PasswordPolicy.Validate(req.Password);
@@ -2607,7 +2611,7 @@ public record InitiateTransferRequest(int ToDepartmentId, [MaxLength(1000)] stri
 public record ResetPasswordRequest([MaxLength(128)] string NewPassword);
 public record CreateDepartmentRequest([MaxLength(100)] string Name, [MaxLength(20)] string Code, double? Latitude, double? Longitude, double? RadiusMeters, [MaxLength(300)] string? Address = null);
 public record AdminUpdateDepartmentRequest([MaxLength(100)] string? Name, [MaxLength(20)] string? Code, double? Latitude, double? Longitude, double? RadiusMeters, [MaxLength(300)] string? Address = null);
-public record AdminCreateInternRequest([MaxLength(100)] string? Username, [MaxLength(128)] string Password, [MaxLength(200)] string FullName, [MaxLength(50)] string? CNIC,
+public record AdminCreateInternRequest([MaxLength(100)] string? Username, [MaxLength(128)] string Password, [MaxLength(200)] string FullName, [Required, MaxLength(50)] string? CNIC,
     [MaxLength(200)] string? University, [MaxLength(200)] string? Degree, InternGender Gender, DateTime StartDate, DateTime EndDate, int MentorId, int? DepartmentId = null, int? ShiftId = null);
 public record AdminUpdateInternRequest([MaxLength(100)] string? Username, [MaxLength(128)] string? Password, [MaxLength(200)] string? FullName, [MaxLength(50)] string? CNIC,
     [MaxLength(200)] string? University, [MaxLength(200)] string? Degree, InternGender? Gender, DateTime? StartDate, DateTime? EndDate,
