@@ -489,6 +489,7 @@ public class AdminController : ControllerBase
             .Include(i => i.User)
             .Include(i => i.Department)
             .Include(i => i.Mentor)
+            .Include(i => i.FaceEnrollmentRecords)
             .AsQueryable();
 
         if (departmentId.HasValue) query = query.Where(i => i.DepartmentId == departmentId);
@@ -512,6 +513,7 @@ public class AdminController : ControllerBase
             i.StartDate,
             i.EndDate,
             i.FaceEnrolled,
+            photoThumbPath = i.FaceEnrollmentRecords.Where(r => r.PhotoThumbPath != null).OrderByDescending(r => r.EnrolledAt).Select(r => r.PhotoThumbPath).FirstOrDefault(),
             faceEnrollmentStatus = i.FaceEnrollmentStatus.ToString(),
             faceRejectedReason = i.FaceRejectedReason,
             i.CreatedAt,
@@ -1041,6 +1043,7 @@ public class AdminController : ControllerBase
         var query = _db.DocumentUploads
             .Include(d => d.Intern).ThenInclude(i => i.Department)
             .Include(d => d.Intern).ThenInclude(i => i.User)
+            .Include(d => d.Intern).ThenInclude(i => i.FaceEnrollmentRecords)
             .Where(d => d.WithdrawnAt == null)
             .AsQueryable();
 
@@ -1053,9 +1056,8 @@ public class AdminController : ControllerBase
         var docs = await query.OrderByDescending(d => d.UploadedAt).Select(d => new
         {
             d.Id,
-            internId = d.InternId,
             internName = d.Intern.FullName,
-            username = d.Intern.User.Username,
+            photoThumbPath = d.Intern.FaceEnrollmentRecords.Where(r => r.PhotoThumbPath != null).OrderByDescending(r => r.EnrolledAt).Select(r => r.PhotoThumbPath).FirstOrDefault(),
             department = d.Intern.Department.Name,
             documentType = d.DocumentType.ToString(),
             d.FilePath,

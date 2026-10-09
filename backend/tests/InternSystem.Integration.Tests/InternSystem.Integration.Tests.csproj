@@ -35,6 +35,9 @@
   <ItemGroup>
     <ProjectReference Include="..\..\InternSystem.Core\InternSystem.Core.csproj" />
     <ProjectReference Include="..\..\InternSystem.Infrastructure\InternSystem.Infrastructure.csproj" />
+    <!-- REQ-04: the photo-thumb exposure tests call the real controller projection
+         (AdminController.GetInterns) directly, so a removed/renamed field fails here. -->
+    <ProjectReference Include="..\..\InternSystem.API\InternSystem.API.csproj" />
   </ItemGroup>
 
 </Project>
