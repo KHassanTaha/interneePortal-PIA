@@ -26,7 +26,7 @@ identifiers. Folding them in is tracked separately and is not part of this pass.
 
 | ID | Title | Priority | Status |
 |----|-------|----------|--------|
-| REQ-01 | Geofence fail-open bug (coordinates missing → attendance proceeds) | Critical | `[NEEDS-ANSWER]` — Q1, Q2, Q3 |
+| REQ-01 | Geofence fail-open bug (coordinates missing → attendance proceeds) | Critical | `[x]` verified 2026-10-08 — fail-closed both paths; §18 on-device verified; AC4 waits on REQ-05 |
 | REQ-02 | Activity log tap does not open correctly on admin dashboard | High | `[NEEDS-ANSWER]` — Q4 |
 | REQ-03 | Swipe-to-dismiss does not work | Medium | `[NEEDS-ANSWER]` — Q5 |
 | REQ-04 | Face-enrollment photo reused for ID card and profile avatar | Medium | `[PARTIAL]` — Q6 answered (image on disk, full + thumb); Q7 open |
@@ -45,7 +45,7 @@ identifiers. Folding them in is tracked separately and is not part of this pass.
 
 ## REQ-01 — Geofence fail-open bug (coordinates missing → attendance still proceeds)
 
-**Status:** `[NEEDS-ANSWER]` (Q1, Q2, Q3)
+**Status:** `[x] verified 2026-10-08 — fail-closed on both paths; §18 on-device verified on emulator-5554 (FR-REQ-01 in PROGRESS.md). AC1–AC3 done; AC4 waits on REQ-05.`
 **Priority:** Critical (security)
 **Category:** Security / correctness
 **Overlaps:** `FACE_RECOGNITION_AND_SYSTEM_GUIDE.md` §2 gate 4 (server-side GPS
@@ -81,6 +81,21 @@ Attendance must fail-closed when geofence data is missing. Specifically:
 4. A failed-geofence attempt is written to the audit log (see REQ-05).
 
 **Open questions — see Q1, Q2, Q3.**
+
+**Implementation record 2026-10-08** (D-S25, branch `fix/req-01-geofence-fail-closed`):
+the fail-open is closed on both paths. Server: `GeoFenceService` now owns the
+decision (`HasValidCoordinates` + `EvaluateGeofence`); all four hardcoded
+fallback sites removed (both start responses return department coords only;
+`VerifyLocation` and `InternController.MarkAttendance` return HTTP 400
+`{"message": "This department does not have coordinates configured. Contact an
+administrator."}` when the department has no usable coordinates). Client:
+`/intern/profile` exposes `departmentLatitude`/`departmentLongitude`;
+`AttendanceScreen` disables "Mark Attendance" with that reason and the
+start/checkout flows check the start response **before** the camera opens
+(AC3). Intern-row coordinates are out of the geofence chain entirely.
+Q2/Q3 are effectively settled by this implementation: fail-closed block (Q2a),
+checked before the camera (Q3b). AC4 (failed attempt in audit log) is REQ-05's
+scope and is not addressed here.
 
 **Dependencies.** REQ-05 (failed attempt logging with photo) should
 land in the same window.

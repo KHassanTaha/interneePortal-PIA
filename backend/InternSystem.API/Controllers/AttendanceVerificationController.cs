@@ -138,8 +138,8 @@ public class AttendanceVerificationController : ControllerBase
             expiresAt = session.ExpiresAt,
             departmentName = intern.Department.Name,
             maxRadiusMeters = intern.Department.RadiusMeters ?? 100.0,
-            departmentLatitude = (intern.Latitude.HasValue && intern.Latitude.Value != 0) ? intern.Latitude.Value : (intern.Department.Latitude ?? 24.894995),
-            departmentLongitude = (intern.Longitude.HasValue && intern.Longitude.Value != 0) ? intern.Longitude.Value : (intern.Department.Longitude ?? 67.152182),
+            departmentLatitude = intern.Department.Latitude,
+            departmentLongitude = intern.Department.Longitude,
             challenges = challenges.Select(c => new { id = c.Id, label = c.Label })
         });
     }
@@ -290,22 +290,16 @@ public class AttendanceVerificationController : ControllerBase
             });
         }
 
-        // Geofence centre: internship office location (captured at creation) → department coords → default
-        double officeLat = (session.Intern?.Latitude != null && session.Intern.Latitude.Value != 0)
-            ? session.Intern.Latitude.Value : 0;
-        double officeLon = (session.Intern?.Longitude != null && session.Intern.Longitude.Value != 0)
-            ? session.Intern.Longitude.Value : 0;
-        double deptLat = (session.Department?.Latitude != null && session.Department.Latitude.Value != 0)
-            ? session.Department.Latitude.Value : 24.894995;
-        double deptLon = (session.Department?.Longitude != null && session.Department.Longitude.Value != 0)
-            ? session.Department.Longitude.Value : 67.152182;
-        double centerLat = officeLat != 0 ? officeLat : deptLat;
-        double centerLon = officeLon != 0 ? officeLon : deptLon;
-        double allowedRadius = (session.Department?.RadiusMeters != null && session.Department.RadiusMeters.Value > 0)
-            ? session.Department.RadiusMeters.Value : 100.0;
+        // Geofence gate is fail-closed (D-S25): the intern's department is the
+        // only authorised centre. Missing or invalid department coordinates reject
+        // with the MISSING_GEOFENCE_CONFIG message; there is no hardcoded fallback.
+        var verdict = _geo.EvaluateGeofence(session.Department, req.Latitude, req.Longitude);
+        if (!verdict.ConfigValid)
+            return BadRequest(new { message = verdict.Message });
 
-        double distance = _geo.HaversineDistance(req.Latitude, req.Longitude, centerLat, centerLon);
-        bool isInRange = distance <= allowedRadius;
+        double distance = verdict.DistanceMeters;
+        double allowedRadius = verdict.AllowedRadiusMeters;
+        bool isInRange = verdict.InRange;
 
         session.Latitude = req.Latitude;
         session.Longitude = req.Longitude;
@@ -463,8 +457,8 @@ public class AttendanceVerificationController : ControllerBase
             method = "checkout",
             departmentName = intern.Department.Name,
             maxRadiusMeters = intern.Department.RadiusMeters ?? 100.0,
-            departmentLatitude = (intern.Latitude.HasValue && intern.Latitude.Value != 0) ? intern.Latitude.Value : (intern.Department.Latitude ?? 24.894995),
-            departmentLongitude = (intern.Longitude.HasValue && intern.Longitude.Value != 0) ? intern.Longitude.Value : (intern.Department.Longitude ?? 67.152182),
+            departmentLatitude = intern.Department.Latitude,
+            departmentLongitude = intern.Department.Longitude,
             challenges = challenges.Select(c => new { id = c.Id, label = c.Label })
         });
     }
