@@ -28,7 +28,7 @@ identifiers. Folding them in is tracked separately and is not part of this pass.
 |----|-------|----------|--------|
 | REQ-01 | Geofence fail-open bug (coordinates missing → attendance proceeds) | Critical | `[x]` verified 2026-10-08 — fail-closed both paths; §18 on-device verified; AC4 waits on REQ-05 |
 | REQ-02 | Activity log tap does not open correctly on admin dashboard | High | `[NEEDS-ANSWER]` — Q4 |
-| REQ-03 | Swipe-to-dismiss does not work | Medium | `[NEEDS-ANSWER]` — Q5 |
+| REQ-03 | Swipe-to-dismiss does not work | Medium | `[-]` — CANCELLED: superseded by D-14 (swipe retired; Close button + backdrop + back); no longer an open item |
 | REQ-04 | Face-enrollment photo reused for ID card and profile avatar | Medium | `[PARTIAL]` — Q6 answered (image on disk, full + thumb); Q7 open |
 | REQ-05 | Failed attendance attempts logged, photographed, visible | High | `[NEEDS-ANSWER]` — Q8a, Q8b, Q9a, Q9b |
 | REQ-06 | Newest-first ordering across all lists | Low | `[NEEDS-ANSWER]` — Q10 |
@@ -127,7 +127,9 @@ one logcat snippet resolves it.
 
 ## REQ-03 — Swipe-to-dismiss does not work anywhere
 
-**Status:** `[NEEDS-ANSWER]` (Q5)
+**Status:** `[-]` CANCELLED — superseded by D-14: swipe retired
+(platform-blocked on RN 0.86 Fabric/Hermes Android); Close button +
+backdrop + back implemented and verified.
 **Priority:** Medium (UX friction)
 **Category:** UI/UX
 **Overlaps:** `PIA_BUGS_AND_CHANGES_11_9_26.md` items #3 and #6 (marked

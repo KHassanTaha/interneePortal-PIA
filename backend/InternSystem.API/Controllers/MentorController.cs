@@ -127,6 +127,7 @@ public class MentorController : ControllerBase
             .Include(i => i.User)
             .Include(i => i.Department)
             .Include(i => i.Shift)
+            .Include(i => i.FaceEnrollmentRecords)
             .Select(i => new
             {
                 i.Id, i.FullName, i.CNIC, i.University, i.Degree,
@@ -137,6 +138,7 @@ public class MentorController : ControllerBase
                 shift = i.Shift != null ? i.Shift.Name : null,
                 shiftId = i.ShiftId,
                 i.StartDate, i.EndDate, i.FaceEnrolled,
+                photoThumbPath = i.FaceEnrollmentRecords.Where(r => r.PhotoThumbPath != null).OrderByDescending(r => r.EnrolledAt).Select(r => r.PhotoThumbPath).FirstOrDefault(),
                 faceEnrollmentStatus = i.FaceEnrollmentStatus.ToString(),
                 faceRejectedReason = i.FaceRejectedReason,
                 isExpired = DateTime.Now > i.EndDate,
@@ -199,6 +201,7 @@ public class MentorController : ControllerBase
             .Include(i => i.Department)
             .Include(i => i.Mentor)
             .Include(i => i.Shift)
+            .Include(i => i.FaceEnrollmentRecords)
             .FirstOrDefaultAsync(i => i.Id == id && i.MentorId == mentor.Id);
         if (intern == null) return NotFound();
 
@@ -223,6 +226,7 @@ public class MentorController : ControllerBase
             faceEnrolled = intern.FaceEnrolled,
             faceEnrollmentStatus = intern.FaceEnrollmentStatus.ToString(),
             faceRejectedReason = intern.FaceRejectedReason,
+            photoThumbPath = intern.FaceEnrollmentRecords.Where(r => r.PhotoThumbPath != null).OrderByDescending(r => r.EnrolledAt).Select(r => r.PhotoThumbPath).FirstOrDefault(),
             isExpired = DateTime.Now > intern.EndDate,
             attendance = new
             {
@@ -1445,6 +1449,7 @@ public class MentorController : ControllerBase
 
         var query = _db.DocumentUploads
             .Include(d => d.Intern).ThenInclude(i => i.Department)
+            .Include(d => d.Intern).ThenInclude(i => i.FaceEnrollmentRecords)
             .Where(d => d.Intern.MentorId == mentor.Id && d.WithdrawnAt == null)
             .AsQueryable();
 
@@ -1455,6 +1460,7 @@ public class MentorController : ControllerBase
         {
             d.Id,
             internName = d.Intern.FullName,
+            photoThumbPath = d.Intern.FaceEnrollmentRecords.Where(r => r.PhotoThumbPath != null).OrderByDescending(r => r.EnrolledAt).Select(r => r.PhotoThumbPath).FirstOrDefault(),
             department = d.Intern.Department.Name,
             documentType = d.DocumentType.ToString(),
             d.FilePath,
