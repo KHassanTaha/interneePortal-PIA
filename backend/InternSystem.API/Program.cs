@@ -210,6 +210,44 @@ app.MapControllers();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        -- ReasonCodes for attendance failure reasons
+        IF OBJECT_ID('ReasonCodes') IS NULL
+        BEGIN
+            CREATE TABLE ReasonCodes (
+                Code               NVARCHAR(64)  NOT NULL PRIMARY KEY,
+                SimplifiedIntern   NVARCHAR(400) NOT NULL,
+                SimplifiedMentor   NVARCHAR(400) NOT NULL,
+                SimplifiedAdmin    NVARCHAR(400) NOT NULL,
+                Technical          NVARCHAR(400) NOT NULL,
+                RemedyIntern       NVARCHAR(400) NOT NULL,
+                RemedyMentor       NVARCHAR(400) NOT NULL,
+                RemedyAdmin        NVARCHAR(400) NOT NULL,
+                IsActive           BIT            NOT NULL DEFAULT 1,
+                UpdatedAt          DATETIME2      NOT NULL DEFAULT GETUTCDATE(),
+                UpdatedByUserId    BIGINT         NULL
+            );
+        END;
+
+        -- Seed ReasonCodes
+        MERGE ReasonCodes AS target
+        USING (VALUES
+            ('LIVENESS_FAILED','We couldn''t confirm your movement. Try again in a well-lit place and follow the prompt closely.','We couldn''t confirm your movement. Try again in a well-lit place and follow the prompt closely.','We couldn''t confirm your movement.','Liveness challenge not passed on device.','Try again in good lighting and follow prompts.','Guide intern to retry in good lighting.','Ask intern to retry with proper lighting.'),
+            ('ANTISPOOF_FAILED','We couldn''t verify you''re a real person. Remove any screen or printed photo from view.','We couldn''t verify you''re a real person. Remove any screen or printed photo from view.','Anti-spoof check failed.','Anti-spoof realScore below threshold.','Remove screens/photos and retry.','Ensure environment clear; retry.','Verify environment and retry.'),
+            ('FACE_MATCH_FAILED','Your face didn''t match the enrolled photo. Try again in similar lighting to your enrollment.','Your face didn''t match the enrolled photo. Try again in similar lighting to your enrollment.','Face match failed.','Face-match cosine distance above threshold.','Use similar lighting as enrollment and retry.','Check lighting; retry.','Verify lighting conditions.'),
+            ('GEOFENCE_OUTSIDE','You''re outside the department''s attendance area. Move closer and try again.','You''re outside the department''s attendance area. Move closer and try again.','Outside geofence.','GPS outside department geofence.','Move closer to department location and retry.','Direct intern to be within geofence.','Confirm location and retry.'),
+            ('MISSING_GEOFENCE_CONFIG','Your department doesn''t have a location configured. Contact your mentor.','Your department doesn''t have a location configured. Contact your mentor.','Missing geofence config.','Department missing coordinates.','Contact your mentor to resolve configuration.','Resolve department geofence config.','Resolve department geofence config.'),
+            ('FACE_NOT_ENROLLED','You haven''t enrolled your face yet. Contact your mentor to start enrollment.','You haven''t enrolled your face yet. Contact your mentor to start enrollment.','Face not enrolled.','Face not enrolled for this intern.','Contact your mentor to enroll face.','Enroll face before attendance.','Ensure face enrollment completed.'),
+            ('DEVICE_NOT_BOUND','This device isn''t authorised for your account. Use your registered phone.','This device isn''t authorised for your account. Use your registered phone.','Device not bound.','Device ID mismatch.','Use your registered device.','Ensure correct registered device used.','Verify device binding.'),
+            ('OUTSIDE_SHIFT_WINDOW','It''s outside your shift hours. Attendance can only be marked during your shift.','It''s outside your shift hours. Attendance can only be marked during your shift.','Outside shift window.','Attempt outside shift window.','Mark attendance during shift hours.','Remind about shift timing.','Verify shift schedule.')
+        ) AS src(Code, SimplifiedIntern, SimplifiedMentor, SimplifiedAdmin, Technical, RemedyIntern, RemedyMentor, RemedyAdmin)
+        ON target.Code = src.Code
+        WHEN MATCHED THEN UPDATE SET 
+            SimplifiedIntern=src.SimplifiedIntern, SimplifiedMentor=src.SimplifiedMentor, SimplifiedAdmin=src.SimplifiedAdmin,
+            Technical=src.Technical, RemedyIntern=src.RemedyIntern, RemedyMentor=src.RemedyMentor, RemedyAdmin=src.RemedyAdmin,
+            IsActive=1, UpdatedAt=GETUTCDATE()
+        WHEN NOT MATCHED THEN INSERT (Code,SimplifiedIntern,SimplifiedMentor,SimplifiedAdmin,Technical,RemedyIntern,RemedyMentor,RemedyAdmin,IsActive,UpdatedAt)
+        VALUES (src.Code,src.SimplifiedIntern,src.SimplifiedMentor,src.SimplifiedAdmin,src.Technical,src.RemedyIntern,src.RemedyMentor,src.RemedyAdmin,1,GETUTCDATE());
+
     db.Database.Migrate();
 
     // Idempotent schema guard: the dev DB was recreated from an older model and
