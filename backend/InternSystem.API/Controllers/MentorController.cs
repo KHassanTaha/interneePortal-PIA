@@ -128,6 +128,7 @@ public class MentorController : ControllerBase
             .Include(i => i.Department)
             .Include(i => i.Shift)
             .Include(i => i.FaceEnrollmentRecords)
+            .OrderByDescending(i => i.CreatedAt)
             .Select(i => new
             {
                 i.Id, i.FullName, i.CNIC, i.University, i.Degree,
@@ -1780,7 +1781,7 @@ public class MentorController : ControllerBase
                 s.IsActive,
                 ownerId = s.CreatedByUserId,
                 isOwner = s.CreatedByUserId != null && s.CreatedByUserId == mentor.UserId
-            }).ToListAsync();
+            }).ToListAsync(); // No CreatedAt on Shift; keeping existing order. See audit.
         return Ok(shifts);
     }
 

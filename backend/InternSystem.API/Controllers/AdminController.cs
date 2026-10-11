@@ -495,7 +495,7 @@ public class AdminController : ControllerBase
         if (departmentId.HasValue) query = query.Where(i => i.DepartmentId == departmentId);
         if (mentorId.HasValue) query = query.Where(i => i.MentorId == mentorId);
 
-        var interns = await query.Select(i => new
+        var interns = await query.OrderByDescending(i => i.CreatedAt).Select(i => new
         {
             i.Id,
             i.FullName,
@@ -970,11 +970,13 @@ public class AdminController : ControllerBase
     {
         var depts = await _db.Departments
             .Where(d => d.IsActive)
+            .OrderByDescending(d => d.CreatedAt)
             .Select(d => new
             {
                 d.Id, d.Name, d.Code, d.Address, d.Latitude, d.Longitude, d.RadiusMeters,
                 internCount = d.Interns.Count,
-                mentorCount = d.Mentors.Count
+                mentorCount = d.Mentors.Count,
+                d.CreatedAt
             }).ToListAsync();
         return Ok(depts);
     }
@@ -2080,7 +2082,7 @@ a.FaceVerified,
                 s.DepartmentId,
                 s.IsActive,
                 assignedInterns = _db.Interns.Count(i => i.ShiftId == s.Id && i.User.IsActive)
-            }).ToListAsync();
+            }).ToListAsync(); // Note: no CreatedAt on Shift; keeping existing order. See audit.
         return Ok(shifts);
     }
 
