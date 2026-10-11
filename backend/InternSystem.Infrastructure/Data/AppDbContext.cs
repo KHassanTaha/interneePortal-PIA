@@ -379,3 +379,6 @@ public class AppDbContext : DbContext
         );
     }
 }
+using InternSystem.Core.Entities;
+    public DbSet<ReasonCode> ReasonCodes { get; set; }
+    public DbSet<AttendanceFailureRecord> AttendanceFailureRecords { get; set; }

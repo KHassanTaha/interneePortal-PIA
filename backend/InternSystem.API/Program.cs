@@ -266,6 +266,28 @@ using (var scope = app.Services.CreateScope())
         WHEN NOT MATCHED THEN INSERT (Code,SimplifiedIntern,SimplifiedMentor,SimplifiedAdmin,Technical,RemedyIntern,RemedyMentor,RemedyAdmin,IsActive,UpdatedAt)
         VALUES (src.Code,src.SimplifiedIntern,src.SimplifiedMentor,src.SimplifiedAdmin,src.Technical,src.RemedyIntern,src.RemedyMentor,src.RemedyAdmin,1,GETUTCDATE());
 
+        IF OBJECT_ID('AttendanceFailureRecords') IS NULL
+        BEGIN
+            CREATE TABLE AttendanceFailureRecords (
+                Id BIGINT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+                InternId BIGINT NOT NULL,
+                PeriodId BIGINT NULL,
+                ReasonCode NVARCHAR(64) NOT NULL,
+                AttemptedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                ImagePath NVARCHAR(MAX) NULL,
+                AttemptedLatitude FLOAT NULL,
+                AttemptedLongitude FLOAT NULL,
+                DeviceIdHash NVARCHAR(256) NULL,
+                AdditionalContext NVARCHAR(MAX) NULL,
+                ClearedAt DATETIME2 NULL,
+                ClearedByUserId BIGINT NULL,
+                ArchivedAt DATETIME2 NULL,
+                PurgeAfter DATETIME2 NULL,
+                CONSTRAINT FK_AttendanceFailureRecords_Interns FOREIGN KEY (InternId) REFERENCES Interns(Id),
+                CONSTRAINT FK_AttendanceFailureRecords_ReasonCodes FOREIGN KEY (ReasonCode) REFERENCES ReasonCodes(Code)
+            );
+        END;
+
         IF OBJECT_ID('Shifts') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Shifts') AND name = 'CreatedByUserId')
         ALTER TABLE Shifts ADD CreatedByUserId int NULL;
 
