@@ -760,3 +760,40 @@ deliberately **not** changed by this decision.
   `logs/screenshots/req-12-cnic-required.png`); duplicate-CNIC path
   re-checked and still 409; probe intern 3242 removed after the run.
   TODO 12b cancelled (email uniqueness). Q17 closed as a decision.
+
+### D-S31 — Admin force-close is the only stall resolution
+
+- **Decision:** When a period is stalled (mentor never acknowledges task cancellations), admin force-closes the period. Tasks auto-cancel with reason "Force-closed by admin." Admin cannot reassign the intern to a different mentor as a resolution path.
+- **Rationale:** Reassigning the mentor triggers a side effect — the previous mentor's in-flight tasks are cancelled as part of the reassignment. That is the exact outcome admin is trying to avoid when trying to close the period cleanly. Force-close is the only path that does not cascade into task cancellation.
+- **Logging:** `PeriodForceClosed` action with reason field.
+- **Status:** scoped (REQ-11).
+
+### D-S32 — Frozen periods enforced at app level and DB level
+
+- **Decision:** Frozen periods (post-certificate, or Terminated/Withdrawn) are enforced at both layers from day one:
+  1. App-level: every write handler checks `IsFrozen` and returns HTTP 409 with `{"message": "This period is locked."}`.
+  2. DB-level: triggers on every frozen-scope table raise an error on UPDATE/DELETE if the row's period is frozen.
+- **Helper:** `dbo.IsPeriodFrozen(@periodId)` — one function called from all triggers.
+- **Exception handling:** the global exception handler translates the SQL freeze error to the D-S21 `{"message": "..."}` shape.
+- **Guard test:** a test that enumerates every table with a `PeriodId` FK and asserts a trigger exists. Prevents silent bypass when a new table is added.
+- **Scope tables:** InternshipPeriods, Attendance, Documents, Tasks, LeaveRequests, FaceEnrollment, Certificates, DeviceBinding (pending N52/53 audit).
+- **Status:** scoped (REQ-11).
+
+### D-S33 — Post-lock field corrections (targeted, no unlock)
+
+- **Decision:** Locked periods cannot be unlocked. Corrections to specific fields (name, CNIC, contact) use a "Correct locked field" form on the intern detail screen. Every correction writes a separate audit entry. If the corrected field appears on an issued certificate, an amended certificate is issued (option d); the original stays in history.
+- **Rationale:** A general unlock reopens the tampering window the lock exists to close. Targeted corrections cover the legitimate cases (typos, legal name changes, GDPR/POPIA data subject requests) without unfreezing the whole period.
+- **Status:** scoped (REQ-11).
+
+### D-S34 — ID card redirect uses current-pointer; lock freezes it
+
+- **Decision:** The intern (or period) has a `CurrentIdCardDocumentId`. The API returns the current ID card. Prior cards stay in archive. When the period locks, the pointer is frozen — a locked account cannot be pointed at a new ID card.
+- **Status:** scoped (REQ-11).
+
+### D-S35 — ReasonCodes schema (Draft A)
+
+- **Decision:** `ReasonCodes` table has one row per reason code, with shared technical message between mentor and admin. Columns: code (PK), simplified_intern, simplified_mentor, simplified_admin, technical, remedy_intern, remedy_mentor, remedy_admin, is_active, updated_at, updated_by_user_id.
+- **Rationale:** The three audiences see different amounts of detail, but mentor and admin see the same technical data. Simplest schema that satisfies the audience split.
+- **Codes are a permanent contract** (per N40) — do not rename.
+- **Edits are audited** — every change to a ReasonCodes row writes an audit entry.
+- **Status:** scoped (REQ-05).
