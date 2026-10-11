@@ -1768,7 +1768,7 @@ public class MentorController : ControllerBase
 
         var shifts = await _db.Shifts
             .Where(s => s.IsCompanyWide || s.DepartmentId == mentor.DepartmentId)
-            .OrderBy(s => s.Name)
+            .OrderByDescending(s => s.CreatedAt)
             .Select(s => new
             {
                 s.Id,
@@ -1780,8 +1780,9 @@ public class MentorController : ControllerBase
                 s.DepartmentId,
                 s.IsActive,
                 ownerId = s.CreatedByUserId,
-                isOwner = s.CreatedByUserId != null && s.CreatedByUserId == mentor.UserId
-            }).ToListAsync(); // No CreatedAt on Shift; keeping existing order. See audit.
+                isOwner = s.CreatedByUserId != null && s.CreatedByUserId == mentor.UserId,
+                s.CreatedAt
+            }).ToListAsync();
         return Ok(shifts);
     }
 

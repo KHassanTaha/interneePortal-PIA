@@ -2070,7 +2070,7 @@ a.FaceVerified,
     public async Task<IActionResult> GetShifts()
     {
         var shifts = await _db.Shifts
-            .OrderBy(s => s.Name)
+            .OrderByDescending(s => s.CreatedAt)
             .Select(s => new
             {
                 s.Id,
@@ -2081,8 +2081,9 @@ a.FaceVerified,
                 department = s.Department != null ? s.Department.Name : null,
                 s.DepartmentId,
                 s.IsActive,
-                assignedInterns = _db.Interns.Count(i => i.ShiftId == s.Id && i.User.IsActive)
-            }).ToListAsync(); // Note: no CreatedAt on Shift; keeping existing order. See audit.
+                assignedInterns = _db.Interns.Count(i => i.ShiftId == s.Id && i.User.IsActive),
+                s.CreatedAt
+            }).ToListAsync();
         return Ok(shifts);
     }
 

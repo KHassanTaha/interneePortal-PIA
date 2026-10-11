@@ -233,6 +233,15 @@ using (var scope = app.Services.CreateScope())
         IF OBJECT_ID('Shifts') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Shifts') AND name = 'CreatedByUserId')
         ALTER TABLE Shifts ADD CreatedByUserId int NULL;
 
+        -- Ensure CreatedAt exists on Shifts for ordering
+        IF OBJECT_ID('Shifts') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.columns
+                       WHERE Name = 'CreatedAt'
+                       AND Object_ID = Object_ID('Shifts'))
+        BEGIN
+            ALTER TABLE Shifts ADD CreatedAt datetime2 NOT NULL
+              CONSTRAINT DF_Shifts_CreatedAt DEFAULT GETUTCDATE();
+        END;
+
         IF OBJECT_ID('Mentors') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Mentors') AND name = 'Phone')
         ALTER TABLE Mentors ADD Phone nvarchar(max) NULL;
         IF OBJECT_ID('Mentors') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Mentors') AND name = 'Email')
