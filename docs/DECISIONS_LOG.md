@@ -760,3 +760,10 @@ deliberately **not** changed by this decision.
   `logs/screenshots/req-12-cnic-required.png`); duplicate-CNIC path
   re-checked and still 409; probe intern 3242 removed after the run.
   TODO 12b cancelled (email uniqueness). Q17 closed as a decision.
+
+### D-S36 — Two failure codes are reserved, not currently fired
+
+- **Decision:** `DEVICE_NOT_BOUND` and `OUTSIDE_SHIFT_WINDOW` are seeded in ReasonCodes but are not currently triggered by the server attendance flow. They are reserved for future use.
+- **Rationale:** Device binding is enforced at login (AuthController), not at attendance. Shift timing feeds the scoring engine (AttendanceScoringService), not the attendance gate. Neither produces a rejection in the current server flow.
+- **Impact:** The codes exist as contract; the intern-facing messages are defined; the display surfaces are ready. If device or shift enforcement moves into the attendance path, no schema or UI change is required — just wiring.
+- **Status:** reserved.
