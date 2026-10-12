@@ -64,6 +64,8 @@ public enum ActivityLogType
     AttendanceFailureCleared,
     AttendanceFailureAutoPurged,
     AttendanceFailureImageRetrieved,
+    InternStatusAutoActivated,
+    InternStatusChanged,
 }
 
 public class ActivityLog
@@ -86,5 +88,4 @@ public class ActivityLog
 
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public string? Metadata { get; set; } // JSON for extra data
-    InternStatusAutoActivated
 }

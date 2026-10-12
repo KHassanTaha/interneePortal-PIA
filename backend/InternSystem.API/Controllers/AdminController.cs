@@ -2664,5 +2664,4 @@ public record RejectInternTransferRequest([MaxLength(1000)] string Reason);publi
         await _context.SaveChangesAsync();
         return Ok(new { message = "Intern moved to Withdrawn", previousStatus = prevStatus.ToString(), newStatus = "Withdrawn" });
     }
-
 }

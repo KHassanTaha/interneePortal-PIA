@@ -378,16 +378,3 @@ app.Run();
 // re-declared public here. Removing this line breaks every integration test in that
 // project at compile time, which is the intended failure mode.
 public partial class Program { }
-        IF OBJECT_ID('InternStatusHistories') IS NULL
-        BEGIN
-            CREATE TABLE InternStatusHistories(
-                Id BIGINT IDENTITY(1,1) PRIMARY KEY,
-                InternId BIGINT NOT NULL,
-                Status INT NOT NULL,
-                FromDate DATETIME2 NOT NULL,
-                ToDate DATETIME2 NULL,
-                ChangedByUserId BIGINT NULL,
-                Reason NVARCHAR(500) NULL
-            );
-        END
-
