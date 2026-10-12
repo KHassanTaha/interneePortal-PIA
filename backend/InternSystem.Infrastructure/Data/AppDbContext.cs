@@ -33,6 +33,8 @@ public class AppDbContext : DbContext
     public DbSet<InternSerialTracker> InternSerialTrackers => Set<InternSerialTracker>();
     public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();
 
+    public DbSet<ReasonCode> ReasonCodes { get; set; }
+    public DbSet<AttendanceFailureRecord> AttendanceFailureRecords { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -379,6 +381,3 @@ public class AppDbContext : DbContext
         );
     }
 }
-using InternSystem.Core.Entities;
-    public DbSet<ReasonCode> ReasonCodes { get; set; }
-    public DbSet<AttendanceFailureRecord> AttendanceFailureRecords { get; set; }

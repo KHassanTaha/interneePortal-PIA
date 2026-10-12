@@ -1,7 +1,10 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace InternSystem.Core.Entities;
 
 public class ReasonCode
 {
+    [Key]
     public string Code { get; set; } = string.Empty;
     public string SimplifiedIntern { get; set; } = string.Empty;
     public string SimplifiedMentor { get; set; } = string.Empty;

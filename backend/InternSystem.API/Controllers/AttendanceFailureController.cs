@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-using System.Text.Json;
 
 namespace InternSystem.API.Controllers;
 
@@ -25,7 +24,7 @@ public class AttendanceFailureController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetAdminFailures([FromQuery] long? internId, [FromQuery] string? reasonCode, [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
-        var q = _db.AttendanceFailureRecords.Include(x => x.Intern).Include(x => x.Intern.User).AsQueryable();
+        var q = _db.AttendanceFailureRecords.Include(x => x.Intern).AsQueryable();
         if (internId.HasValue) q = q.Where(x => x.InternId == internId.Value);
         if (!string.IsNullOrWhiteSpace(reasonCode)) q = q.Where(x => x.ReasonCode == reasonCode);
         if (from.HasValue) q = q.Where(x => x.AttemptedAt >= from.Value);
