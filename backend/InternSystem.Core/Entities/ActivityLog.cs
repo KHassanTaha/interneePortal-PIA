@@ -86,4 +86,5 @@ public class ActivityLog
 
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public string? Metadata { get; set; } // JSON for extra data
+    InternStatusAutoActivated
 }
