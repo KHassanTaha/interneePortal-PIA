@@ -2626,4 +2626,43 @@ public record AdminUpdateAttendanceRequest(DateTime? InTime, DateTime? OutTime,
     AttendanceSlotStatus? ArrivalStatus, AttendanceSlotStatus? DepartureStatus, bool? IsOnLeave, [MaxLength(1000)] string? Notes);
 public record AdminInitiateInternTransferRequest(int ToMentorId, [MaxLength(1000)] string? Notes);
 public record AdminEditTransferRequest(int? ToMentorId, [MaxLength(1000)] string? Notes);
-public record RejectInternTransferRequest([MaxLength(1000)] string Reason);
+public record RejectInternTransferRequest([MaxLength(1000)] string Reason);public record UnterminateRequest(string? Reason);
+
+    [HttpPost("interns/{id}/unterminate")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> UnterminateIntern(int id, [FromBody] UnterminateRequest req)
+    {
+        var intern = await _context.Interns.FirstOrDefaultAsync(i => i.Id == id);
+        if (intern == null) return NotFound();
+        if (intern.Status != InternshipStatus.Terminated) return BadRequest(new { message = "Intern is not terminated" });
+        var prevStatus = intern.Status;
+        // close history
+        var hist = await _context.InternStatusHistories.Where(h => h.InternId == intern.Id && h.ToDate == null).ToListAsync();
+        var now = DateTime.Now;
+        foreach (var h in hist) h.ToDate = now;
+        intern.Status = InternshipStatus.Withdrawn;
+        intern.TerminationReason = null;
+        intern.TerminatedAt = null;
+        intern.StatusUpdatedAt = now;
+        intern.StatusUpdatedByUserId = CurrentUserId;
+        _context.InternStatusHistories.Add(new InternStatusHistory
+        {
+            InternId = intern.Id,
+            Status = InternshipStatus.Withdrawn,
+            FromDate = now,
+            ChangedByUserId = CurrentUserId,
+            Reason = req.Reason ?? "Un-terminated"
+        });
+        _context.ActivityLogs.Add(new ActivityLog
+        {
+            LogType = ActivityLogType.InternStatusChanged,
+            Description = $"Admin unterminated intern {intern.Id}: Terminated -> Withdrawn",
+            PerformedByUserId = CurrentUserId,
+            TargetInternId = intern.Id,
+            CreatedAt = now
+        });
+        await _context.SaveChangesAsync();
+        return Ok(new { message = "Intern moved to Withdrawn", previousStatus = prevStatus.ToString(), newStatus = "Withdrawn" });
+    }
+
+}
