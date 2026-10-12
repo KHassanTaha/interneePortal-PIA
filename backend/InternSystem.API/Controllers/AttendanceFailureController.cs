@@ -70,6 +70,33 @@ public class AttendanceFailureController : ControllerBase
         var count = await _db.AttendanceFailureRecords.CountAsync(f => f.ClearedAt == null);
         return Ok(new { count });
     }
+
+    [HttpPost("admin/attendance-failures/{id:long}/clear")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> ClearFailure(long id, [FromBody] ClearRequest req)
+    {
+        var x = await _db.AttendanceFailureRecords.Include(f => f.Intern).ThenInclude(i => i.User).FirstOrDefaultAsync(f => f.Id == id);
+        if (x == null) return NotFound();
+        if (x.ClearedAt != null) return NoContent();
+        if (x.Intern?.User != null && !x.Intern.User.IsActive && !req.Acknowledged)
+            return BadRequest(new { message = "Acknowledgement required for suspended intern" });
+        var archiveDir = Path.Combine("uploads", "attendance-failures-archive");
+        Directory.CreateDirectory(archiveDir);
+        if (!string.IsNullOrWhiteSpace(x.ImagePath) && System.IO.File.Exists(x.ImagePath))
+        {
+            var fileName = Path.GetFileName(x.ImagePath);
+            var dest = Path.Combine(archiveDir, fileName);
+            try { System.IO.File.Move(x.ImagePath, dest); x.ImagePath = dest; } catch { }
+        }
+        var now = DateTime.Now;
+        x.ClearedAt = now;
+        x.ClearedByUserId = CurrentUserId;
+        x.ArchivedAt = now;
+        x.PurgeAfter = now.AddDays(90);
+        _db.ActivityLogs.Add(new ActivityLog { LogType = ActivityLogType.AttendanceFailureCleared, Description = $"Admin cleared attendance failure {id} for intern {x.InternId} (reason {x.ReasonCode})", PerformedByUserId = CurrentUserId, TargetInternId = (int)x.InternId, CreatedAt = DateTime.Now });
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
 }
 
 public record ClearRequest(bool Acknowledged);
