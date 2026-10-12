@@ -358,6 +358,15 @@ using (var scope = app.Services.CreateScope())
 
         IF OBJECT_ID('Interns') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_Interns_Cnic' AND object_id = OBJECT_ID('Interns'))
         CREATE UNIQUE INDEX UX_Interns_Cnic ON Interns(Cnic) WHERE Cnic IS NOT NULL AND Cnic <> '';
+        IF OBJECT_ID('Interns') IS NOT NULL
+        BEGIN
+            IF COL_LENGTH('Interns','Status') IS NULL ALTER TABLE Interns ADD Status INT NOT NULL DEFAULT 0;
+            IF COL_LENGTH('Interns','StatusUpdatedAt') IS NULL ALTER TABLE Interns ADD StatusUpdatedAt DATETIME2 NULL;
+            IF COL_LENGTH('Interns','StatusUpdatedByUserId') IS NULL ALTER TABLE Interns ADD StatusUpdatedByUserId BIGINT NULL;
+            IF COL_LENGTH('Interns','TerminationReason') IS NULL ALTER TABLE Interns ADD TerminationReason NVARCHAR(1000) NULL;
+            IF COL_LENGTH('Interns','TerminatedAt') IS NULL ALTER TABLE Interns ADD TerminatedAt DATETIME2 NULL;
+            UPDATE Interns SET Status = 1 WHERE Status = 0 AND StartDate <= CAST(GETUTCDATE() AS DATE);
+        END
     ");
 }
 

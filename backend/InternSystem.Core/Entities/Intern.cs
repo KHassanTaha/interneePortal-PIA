@@ -58,4 +58,11 @@ public class Intern
     public ICollection<Certificate> Certificates { get; set; } = new List<Certificate>();
     public ICollection<ActivityLog> ActivityLogs { get; set; } = new List<ActivityLog>();
     public ICollection<FaceEnrollmentRecord> FaceEnrollmentRecords { get; set; } = new List<FaceEnrollmentRecord>();
+    // Internship Lifecycle
+    public InternshipStatus Status { get; set; } = InternshipStatus.Upcoming;
+    public DateTime? StatusUpdatedAt { get; set; }
+    public long? StatusUpdatedByUserId { get; set; }
+    public string? TerminationReason { get; set; }
+    public DateTime? TerminatedAt { get; set; }
+
 }
