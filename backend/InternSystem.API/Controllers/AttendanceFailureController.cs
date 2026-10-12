@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.IO;
 
 namespace InternSystem.API.Controllers;
 
@@ -97,7 +98,7 @@ public class AttendanceFailureController : ControllerBase
         await _db.SaveChangesAsync();
         return NoContent();
     }
-}
 
-public record ClearRequest(bool Acknowledged);
+    public record ClearRequest(bool Acknowledged);
 public record ClearBatchRequest(List<long> Ids, bool Acknowledged);
+}
