@@ -60,7 +60,10 @@ public enum ActivityLogType
     LeaveApplied,
     LeaveApproved,
     LeaveRejected,
-    DeviceBindingReset
+    DeviceBindingReset,
+    AttendanceFailureCleared,
+    AttendanceFailureAutoPurged,
+    AttendanceFailureImageRetrieved,
 }
 
 public class ActivityLog
