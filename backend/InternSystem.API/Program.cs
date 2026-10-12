@@ -170,6 +170,7 @@ builder.Services.AddScoped<IdempotencyService>();
 // ─── App ────────────────────────────────────────────────────────────────────
 builder.Services.AddHostedService<InternSystem.API.Services.AttendanceFailureAutoPurgeService>();
 builder.Services.AddHostedService<InternSystem.API.Services.AttendanceFailureRetentionReminderService>();
+builder.Services.AddHostedService<InternSystem.API.Services.InternStatusAutoActivateService>();
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
