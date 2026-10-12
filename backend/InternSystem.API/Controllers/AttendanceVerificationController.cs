@@ -190,7 +190,7 @@ public class AttendanceVerificationController : ControllerBase
             session.Status = VerificationSessionStatus.Failed;
             session.FailureReason = "Liveness challenge responses did not match the server-issued challenges";
             await _db.SaveChangesAsync();
-            return BadRequest(new { code = "LIVENESS_FAILED", message = "Liveness check failed. Please perform the exact challenges shown on screen." });
+            return await RejectWithFailure(intern, "LIVENESS_FAILED", null, null, null, null, new { challengeMismatch = true });
         }
 
         // Passive anti-spoof (fail-closed): printed photos, screens and video replays are rejected.
@@ -200,7 +200,7 @@ public class AttendanceVerificationController : ControllerBase
             session.Status = VerificationSessionStatus.Failed;
             session.FailureReason = "Passive anti-spoof rejected the submitted photo";
             await _db.SaveChangesAsync();
-            return BadRequest(new { code = "SPOOF_DETECTED", message = "Live-face check failed. Photos, screens and video replays are not accepted. Please look directly at the camera." });
+            return await RejectWithFailure(intern, "ANTISPOOF_FAILED", null, null, null, null, new { isReal, realScore = 0 });
         }
 
         // Server-side 1:1 comparison against the enrolled embedding.
@@ -209,13 +209,7 @@ public class AttendanceVerificationController : ControllerBase
             session.Status = VerificationSessionStatus.Failed;
             session.FailureReason = $"Intern face status is {intern.FaceEnrollmentStatus}";
             await _db.SaveChangesAsync();
-            return BadRequest(new
-            {
-                code = "NOT_ENROLLED",
-                message = intern.FaceEnrollmentStatus == FaceEnrollmentStatus.Pending
-                    ? "Your face profile is under review. You cannot verify attendance until it is approved."
-                    : "You must enroll your face first (Profile → Face Verification)."
-            });
+            return await RejectWithFailure(intern, "FACE_NOT_ENROLLED", null, null, null, null, new { status = intern.FaceEnrollmentStatus.ToString() });
         }
 
         float[] storedEmbedding;
@@ -240,12 +234,7 @@ public class AttendanceVerificationController : ControllerBase
             session.Status = VerificationSessionStatus.Failed;
             session.FailureReason = $"Face did not match enrolled identity (similarity {similarity:F3})";
             await _db.SaveChangesAsync();
-            return BadRequest(new
-            {
-                code = "FACE_MISMATCH",
-                message = "Face did not match your enrolled identity. Please retry.",
-                similarityScore = Math.Round(similarity, 4)
-            });
+            return await RejectWithFailure(intern, "FACE_MATCH_FAILED", null, null, null, null, new { similarityScore = Math.Round(similarity, 4) });
         }
 
         // Persist the verification selfie for later review.
@@ -295,7 +284,12 @@ public class AttendanceVerificationController : ControllerBase
         // with the MISSING_GEOFENCE_CONFIG message; there is no hardcoded fallback.
         var verdict = _geo.EvaluateGeofence(session.Department, req.Latitude, req.Longitude);
         if (!verdict.ConfigValid)
-            return BadRequest(new { message = verdict.Message });
+        {
+            session.Status = VerificationSessionStatus.Failed;
+            session.FailureReason = "Missing geofence config";
+            await _db.SaveChangesAsync();
+            return await RejectWithFailure(session.Intern, "MISSING_GEOFENCE_CONFIG", null, req.Latitude, req.Longitude, session.Intern?.User?.DeviceIdHash, new { configValid = false });
+        }
 
         double distance = verdict.DistanceMeters;
         double allowedRadius = verdict.AllowedRadiusMeters;
@@ -312,13 +306,8 @@ public class AttendanceVerificationController : ControllerBase
             session.FailureReason = $"Outside allowed geofence ({distance:F1}m from {session.Department?.Name}, max allowed {allowedRadius:F0}m)";
             await _db.SaveChangesAsync();
 
-            return BadRequest(new
-            {
-                code = "OUTSIDE_ALLOWED_AREA",
-                message = $"You are out of bounds! You are {distance:F0}m away from {session.Department?.Name} (must be within {allowedRadius:F0}m)",
-                distanceMeters = Math.Round(distance),
-                allowedRadiusMeters = allowedRadius
-            });
+            return await RejectWithFailure(session.Intern, "GEOFENCE_OUTSIDE", null, req.Latitude, req.Longitude, session.Intern?.User?.DeviceIdHash,
+                new { distanceMeters = Math.Round(distance), allowedRadiusMeters = allowedRadius });
         }
 
         session.LocationVerified = true;
@@ -403,6 +392,41 @@ public class AttendanceVerificationController : ControllerBase
             checkInTime = attendance.Timestamp,
             departmentName = session.Department?.Name,
             distanceMeters = Math.Round(session.DistanceFromDepartment ?? 0)
+        });
+    }
+
+    private async Task<IActionResult> RejectWithFailure(
+        Intern intern,
+        string reasonCode,
+        string? imagePath,
+        double? lat,
+        double? lng,
+        string? deviceIdHash,
+        object? context = null)
+    {
+        var rec = new AttendanceFailureRecord
+        {
+            InternId = intern.Id,
+            ReasonCode = reasonCode,
+            AttemptedAt = DateTime.Now,
+            ImagePath = imagePath,
+            AttemptedLatitude = lat,
+            AttemptedLongitude = lng,
+            DeviceIdHash = deviceIdHash ?? intern.User?.DeviceIdHash,
+            AdditionalContext = context != null ? System.Text.Json.JsonSerializer.Serialize(context, WebJson) : null
+        };
+        _db.AttendanceFailureRecords.Add(rec);
+        await _db.SaveChangesAsync();
+
+        var rc = await _db.ReasonCodes.AsNoTracking().FirstOrDefaultAsync(r => r.Code == reasonCode);
+        var simplified = rc?.SimplifiedIntern ?? reasonCode;
+        var remedy = rc?.RemedyIntern ?? string.Empty;
+        var msg = string.IsNullOrWhiteSpace(remedy) ? simplified : simplified + " " + remedy.TrimEnd('.');
+        return BadRequest(new
+        {
+            code = reasonCode,
+            message = msg,
+            remedy = remedy
         });
     }
 
