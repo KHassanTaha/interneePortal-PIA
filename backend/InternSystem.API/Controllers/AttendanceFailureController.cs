@@ -1,4 +1,3 @@
-using InternSystem.API.Security;
 using InternSystem.Core.Entities;
 using InternSystem.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
@@ -73,3 +72,6 @@ public class AttendanceFailureController : ControllerBase
         return Ok(new { count });
     }
 }
+
+public record ClearRequest(bool Acknowledged);
+public record ClearBatchRequest(List<long> Ids, bool Acknowledged);
