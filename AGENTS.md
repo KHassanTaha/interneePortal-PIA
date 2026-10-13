@@ -413,6 +413,12 @@ offline-queue → reconnect → conflict (M11).
 ### 6.5 Test rules
 
 - A test that does not fail against the bug it was written for is not a test.
+- Every behavioural test must be **mutation-checked** before it is committed:
+  break the exact production line the test claims to protect, run the test,
+  watch it fail, revert, and record the observed failure (test name + expected
+  vs actual) in `docs/PROGRESS.md`. A test that still passes with its subject
+  broken is not a test, per the rule above. Skipped tests do not need a
+  mutation check; they need a reason string that names what is missing.
 - Never assert on `IsVisible` alone — assert position or content where a
   layout defect would be.
 - Never write to the developer's real filesystem or database. Temp dirs only.
