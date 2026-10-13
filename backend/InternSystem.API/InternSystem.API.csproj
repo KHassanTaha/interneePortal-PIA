@@ -20,6 +20,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="InternSystem.Integration.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="Models\AI\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

@@ -5,6 +5,13 @@ namespace InternSystem.Integration.Tests;
 
 public class AttendanceFailureRetentionTests
 {
+    // These six paths need the attendance-failure service plus a temp-file fixture
+    // to assert the side effect really landed on disk. They are skipped rather than
+    // left as empty [Fact] bodies, which would report a pass for unverified
+    // behaviour (AGENTS.md 6.5).
+    private const string NeedsServiceAndFileFixture =
+        "REQ-05 retention/clear behaviour needs the attendance-failure service and a temp-file fixture";
+
     [Fact]
     public void AllEightCodesResolveFromReasonCodes()
     {
@@ -37,21 +44,21 @@ public class AttendanceFailureRetentionTests
         Assert.False(string.IsNullOrEmpty(rc.RemedyMentor));
     }
 
-    [Fact]
+    [Fact(Skip = NeedsServiceAndFileFixture)]
     public void ClearMovesFileAndSetsFields() { }
 
-    [Fact]
+    [Fact(Skip = NeedsServiceAndFileFixture)]
     public void ClearOnSuspendedInternRequiresAcknowledgement() { }
 
-    [Fact]
+    [Fact(Skip = NeedsServiceAndFileFixture)]
     public void AutoPurgeDeletesRowAndArchiveFile() { }
 
-    [Fact]
+    [Fact(Skip = NeedsServiceAndFileFixture)]
     public void AutoPurgeWritesAuditEntry() { }
 
-    [Fact]
+    [Fact(Skip = NeedsServiceAndFileFixture)]
     public void ImageRetrievalWritesAuditEntry() { }
 
-    [Fact]
+    [Fact(Skip = NeedsServiceAndFileFixture)]
     public void WeeklyReminderProducesExactlyOneBatchedNotification() { }
 }
