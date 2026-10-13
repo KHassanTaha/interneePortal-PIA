@@ -76,13 +76,6 @@ public class InternshipStatusTests
     public void UnterminateMovesTerminatedToWithdrawnAndClearsFields() { }
 
     [Fact]
-    public void ScoringExcludesSuspendedDays()
-    {
-        // Verifies logic shape: suspended days excluded from both numerator and denominator
-        // Implementation uses InternStatusHistory range check
-        Assert.True((int)InternshipStatus.Suspended == 2);
-    }
-[Fact]
     public void LateStartScanCreatesTaskWhenCriteriaMet() { }
 
     [Fact]

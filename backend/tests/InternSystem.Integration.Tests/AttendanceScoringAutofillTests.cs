@@ -316,6 +316,44 @@ public class AttendanceScoringAutofillTests : IAsyncLifetime
         Assert.Equal(28.6, result.Percentage);
     }
 
+    // ---------- Suspended day exclusion ----------
+
+    [Fact]
+    public async Task ScoringExcludesSuspendedDays()
+    {
+        await using var db = _database.CreateContext();
+        var intern = SeedIntern(db);
+        db.SaveChanges();
+        var internId = intern.Id;
+
+        // Mon-Tue-Wed suspended; Thu and Fri present and perfect; Sat/Sun autofill.
+        db.InternStatusHistories.Add(new InternStatusHistory
+        {
+            InternId = internId,
+            Status = InternshipStatus.Suspended,
+            FromDate = Mon,
+            ToDate = Wed
+        });
+        SeedPerfectDay(db, internId, Mon.AddDays(3)); // Thu
+        SeedPerfectDay(db, internId, Mon.AddDays(4)); // Fri
+        db.SaveChanges();
+
+        var result = await new AttendanceScoringService(db).ComputeAsync(internId, Mon, Sun);
+
+        // A suspended day leaves BOTH the numerator and the denominator. That is
+        // the whole point of the rule: an intern is neither penalised for a
+        // suspension nor credited for it. Computing over Mon..Sun gives 4 counted
+        // days (Thu, Fri, Sat, Sun) x 2.0 = 8.0 of 8.0 -> 100%.
+        // If the exclusion regresses, Mon-Wed re-enter the denominator as three
+        // zero-score days and the same window reads 8.0 of 14.0 -> 57.1%. TotalDays
+        // is asserted as well as Percentage so a wrong day count cannot hide behind
+        // a stable ratio.
+        Assert.Equal(4, result.TotalDays);
+        Assert.Equal(8.0, result.TotalScore);
+        Assert.Equal(8.0, result.MaxScore);
+        Assert.Equal(100.0, result.Percentage);
+    }
+
     /// <summary>
     /// Clears rows a previous test created so this test starts from a known
     /// state. Without this the suite shares one database and a holiday or
