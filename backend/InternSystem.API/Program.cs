@@ -368,7 +368,13 @@ using (var scope = app.Services.CreateScope())
             IF COL_LENGTH('Interns','TerminatedAt') IS NULL ALTER TABLE Interns ADD TerminatedAt DATETIME2 NULL;
             UPDATE Interns SET Status = 1 WHERE Status = 0 AND StartDate <= CAST(GETUTCDATE() AS DATE);
         END
-    ");
+            IF OBJECT_ID('Tasks') IS NOT NULL
+        BEGIN
+            IF COL_LENGTH('Tasks','TaskType') IS NULL ALTER TABLE Tasks ADD TaskType NVARCHAR(50) NULL;
+            IF COL_LENGTH('Tasks','DismissCount') IS NULL ALTER TABLE Tasks ADD DismissCount INT NOT NULL DEFAULT 0;
+            IF COL_LENGTH('Tasks','Metadata') IS NULL ALTER TABLE Tasks ADD Metadata NVARCHAR(1000) NULL;
+        END
+);
 }
 
 app.Run();
