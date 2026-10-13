@@ -1,42 +1,39 @@
+using System.Reflection;
+using System.Security.Claims;
+using InternSystem.API.Controllers;
 using InternSystem.API.Services;
 using InternSystem.Core.Entities;
 using InternSystem.Infrastructure.Data;
+using InternSystem.Infrastructure.Services;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace InternSystem.Integration.Tests;
 
 /// <summary>
-/// REQ-10 internship lifecycle. This class is deliberately mixed, and the split
-/// is the finding, not an accident (2026-10-14):
+/// REQ-10 internship lifecycle.
 ///
 /// <para>
-/// The late-start scan (2e), the reverse late-end notifications (2f) and the
-/// Upcoming -> Active auto-activation <b>are</b> implemented, so those tests run
-/// for real against SQL Server via each hosted service's <c>RunOnceAsync</c> seam.
+/// Service-side behaviour (the late-start scan 2e, the reverse late-end
+/// notifications 2f, and Upcoming -> Active auto-activation) runs for real
+/// against SQL Server via each hosted service's <c>RunOnceAsync</c> seam.
 /// </para>
 ///
 /// <para>
-/// Every test whose name claims an endpoint behaviour (status change,
-/// un-terminate, task resolution, the permission matrix) is
-/// <c>[Fact(Skip = ...)]</c> because REQ-10's endpoint layer was never merged -
-/// see W1-REQ10-EP in docs/TODO.md. They are skipped, not faked: an empty
-/// <c>[Fact]</c> body reports a pass for behaviour that does not exist, which is
-/// exactly the failure mode AGENTS.md 6.5 forbids. A skipped test tells the
-/// grader what is missing; a fake green tells them nothing.
+/// Endpoint behaviour (status change, un-terminate, task resolution, the
+/// permission matrix) now runs for real against the controllers. They are
+/// constructed directly with the shared test <see cref="AppDbContext"/> and a
+/// fabricated <see cref="ClaimsPrincipal"/>; these actions only touch the
+/// context, so the unused dependencies are passed as null.
 /// </para>
 /// </summary>
 [Collection(SqlServerCollection.Name)]
 public class InternshipStatusTests : IAsyncLifetime
 {
     private static readonly DateTime Today = DateTime.Today;
-
-    // Attribute arguments must be compile-time constants, so the reasons are consts
-    // rather than repeated inline strings that would drift apart over time.
-    private const string StatusEndpointMissing =
-        "REQ-10 status-change endpoint not implemented (W1-REQ10-EP, docs/TODO.md)";
-    private const string ResolveEndpointMissing =
-        "REQ-10 resolution/un-terminate endpoint not implemented (W1-REQ10-EP, docs/TODO.md)";
 
     private readonly SqlServerTestDatabase _database;
 
@@ -289,49 +286,344 @@ public class InternshipStatusTests : IAsyncLifetime
         Assert.Equal(InternshipStatus.Upcoming, new Intern().Status);
     }
 
-    // ---------- Skipped: REQ-10 endpoint layer not implemented ----------
-    // These compile, report as skipped, and name what is missing. Do not convert
-    // them to empty [Fact] bodies to make the suite green.
+    // ---------- Group A: permission matrix + history ----------
 
-    [Fact(Skip = StatusEndpointMissing)]
-    public void MentorCanSetActiveSuspendedCompletedOnOwnIntern() { }
+    [Fact]
+    public async Task MentorCanSetActiveSuspendedCompletedOnOwnIntern()
+    {
+        await using var db = _database.CreateContext();
+        var (intern, mentor) = SeedGraph(db, InternshipStatus.Active, Today.AddDays(-5), Today.AddDays(30));
+        await db.SaveChangesAsync();
+        var internId = intern.Id;
 
-    [Fact(Skip = StatusEndpointMissing)]
-    public void MentorCannotSetWithdrawnOrTerminated() { }
+        var controller = MakeMentorController(db, mentor.UserId);
+        var result = await controller.ChangeInternStatus(
+            internId, new MentorChangeInternStatusRequest((int)InternshipStatus.Suspended, "temporary"));
 
-    [Fact(Skip = StatusEndpointMissing)]
-    public void InternCannotSetAnyStatus() { }
+        Assert.Equal(200, StatusOf(result));
+        await using var verify = _database.CreateContext();
+        Assert.Equal(InternshipStatus.Suspended, (await verify.Interns.FindAsync(internId))!.Status);
+    }
 
-    [Fact(Skip = StatusEndpointMissing)]
-    public void AdminCanSetAllStatuses() { }
+    [Fact]
+    public async Task MentorCannotSetWithdrawnOrTerminated()
+    {
+        await using var db = _database.CreateContext();
+        var (intern, mentor) = SeedGraph(db, InternshipStatus.Active, Today.AddDays(-5), Today.AddDays(30));
+        await db.SaveChangesAsync();
+        var internId = intern.Id;
 
-    [Fact(Skip = StatusEndpointMissing)]
-    public void StatusChangeWritesHistoryRow() { }
+        var controller = MakeMentorController(db, mentor.UserId);
+        var result = await controller.ChangeInternStatus(
+            internId, new MentorChangeInternStatusRequest((int)InternshipStatus.Withdrawn, "try"));
 
-    [Fact(Skip = ResolveEndpointMissing)]
-    public void UnterminateMovesTerminatedToWithdrawnAndClearsFields() { }
+        Assert.Equal(403, StatusOf(result));
+        await using var verify = _database.CreateContext();
+        Assert.Equal(InternshipStatus.Active, (await verify.Interns.FindAsync(internId))!.Status);
+    }
 
-    [Fact(Skip = ResolveEndpointMissing)]
-    public void ResolveExtendStartUpdatesDateAndClosesTask() { }
+    [Fact]
+    public void InternCannotSetAnyStatus()
+    {
+        // The intern has no status route at all, so an intern can never change a
+        // status. If a route containing "status" is ever added to InternController
+        // this fails, which is the point.
+        var statusRoutes = typeof(InternController).GetMethods()
+            .SelectMany(m => m.GetCustomAttributes<HttpMethodAttribute>(true))
+            .SelectMany(a => string.IsNullOrEmpty(a.Template)
+                ? Enumerable.Empty<string>()
+                : new[] { a.Template })
+            .Where(t => t.Contains("status", StringComparison.OrdinalIgnoreCase))
+            .ToList();
 
-    [Fact(Skip = ResolveEndpointMissing)]
-    public void ResolveExtendStartRejectsPastDate() { }
+        Assert.Empty(statusRoutes);
+    }
 
-    [Fact(Skip = ResolveEndpointMissing)]
-    public void ResolveWithdrawSetsStatusAndClosesTask() { }
+    [Fact]
+    public async Task AdminCanSetAllStatuses()
+    {
+        foreach (var target in new[]
+        {
+            InternshipStatus.Active, InternshipStatus.Suspended, InternshipStatus.Completed,
+            InternshipStatus.Withdrawn, InternshipStatus.Terminated
+        })
+        {
+            await using var db = _database.CreateContext();
+            var (intern, _) = SeedGraph(db, InternshipStatus.Upcoming, Today.AddDays(-5), Today.AddDays(30));
+            await db.SaveChangesAsync();
+            var internId = intern.Id;
 
-    [Fact(Skip = ResolveEndpointMissing)]
-    public void ResolveWithdrawWritesHistory() { }
+            var controller = MakeAdminController(db, AdminUserId);
+            var result = await controller.ChangeInternStatus(
+                internId, new AdminChangeInternStatusRequest((int)target, "reason"));
 
-    [Fact(Skip = ResolveEndpointMissing)]
-    public void ResolveDismissIncrementsAndStaysPending() { }
+            Assert.Equal(200, StatusOf(result));
+            await using var verify = _database.CreateContext();
+            Assert.Equal(target, (await verify.Interns.FindAsync(internId))!.Status);
+        }
+    }
 
-    [Fact(Skip = ResolveEndpointMissing)]
-    public void ThirdDismissCreatesAdminNotification() { }
+    [Fact]
+    public async Task StatusChangeWritesHistoryRow()
+    {
+        await using var db = _database.CreateContext();
+        var (intern, _) = SeedGraph(db, InternshipStatus.Active, Today.AddDays(-5), Today.AddDays(30));
+        await db.SaveChangesAsync();
+        var internId = intern.Id;
 
-    [Fact(Skip = ResolveEndpointMissing)]
-    public void MentorCannotResolveOthersTask() { }
+        db.InternStatusHistories.Add(new InternStatusHistory
+        {
+            InternId = internId,
+            Status = InternshipStatus.Active,
+            FromDate = Today.AddDays(-5)
+        });
+        await db.SaveChangesAsync();
 
-    [Fact(Skip = ResolveEndpointMissing)]
-    public void NonLateStartTaskRejected() { }
+        var controller = MakeAdminController(db, AdminUserId);
+        var result = await controller.ChangeInternStatus(
+            internId, new AdminChangeInternStatusRequest((int)InternshipStatus.Suspended, "hr"));
+
+        Assert.Equal(200, StatusOf(result));
+        await using var verify = _database.CreateContext();
+        var rows = await verify.InternStatusHistories.Where(h => h.InternId == internId).ToListAsync();
+        Assert.Equal(2, rows.Count);
+        Assert.Single(rows, h => h.Status == InternshipStatus.Active && h.ToDate != null);
+        Assert.Single(rows, h => h.Status == InternshipStatus.Suspended && h.ToDate == null);
+    }
+
+    // ---------- Group F: un-terminate ----------
+
+    [Fact]
+    public async Task UnterminateMovesTerminatedToWithdrawnAndClearsFields()
+    {
+        await using var db = _database.CreateContext();
+        var (intern, _) = SeedGraph(db, InternshipStatus.Terminated, Today.AddDays(-5), Today.AddDays(30));
+        intern.TerminationReason = "misconduct";
+        intern.TerminatedAt = Today.AddDays(-1);
+        await db.SaveChangesAsync();
+        var internId = intern.Id;
+
+        var controller = MakeAdminController(db, AdminUserId);
+        var result = await controller.UnterminateIntern(internId, new AdminUnterminateRequest("appeal upheld"));
+
+        Assert.Equal(200, StatusOf(result));
+        await using var verify = _database.CreateContext();
+        var reloaded = await verify.Interns.FindAsync(internId);
+        Assert.Equal(InternshipStatus.Withdrawn, reloaded!.Status);
+        Assert.Null(reloaded.TerminationReason);
+        Assert.Null(reloaded.TerminatedAt);
+    }
+
+    // ---------- Group C: late-start task resolution ----------
+
+    [Fact]
+    public async Task ResolveExtendStartUpdatesDateAndClosesTask()
+    {
+        await using var db = _database.CreateContext();
+        var (intern, mentor) = SeedGraph(db, InternshipStatus.Active, Today.AddDays(-5), Today.AddDays(30));
+        await db.SaveChangesAsync();
+        var task = SeedLateStartTask(db, intern, mentor);
+        await db.SaveChangesAsync();
+        var taskId = task.Id;
+        var newStart = Today.AddDays(1);
+
+        var controller = MakeMentorController(db, mentor.UserId);
+        var result = await controller.ResolveTask(taskId, new MentorResolveTaskRequest("ExtendStart", newStart));
+
+        Assert.Equal(200, StatusOf(result));
+        await using var verify = _database.CreateContext();
+        Assert.Equal(InternSystem.Core.Entities.TaskStatus.Completed, (await verify.Tasks.FindAsync(taskId))!.Status);
+        Assert.Equal(newStart.Date, (await verify.Interns.FindAsync(intern.Id))!.StartDate.Date);
+    }
+
+    [Fact]
+    public async Task ResolveExtendStartRejectsPastDate()
+    {
+        await using var db = _database.CreateContext();
+        var (intern, mentor) = SeedGraph(db, InternshipStatus.Active, Today.AddDays(-5), Today.AddDays(30));
+        await db.SaveChangesAsync();
+        var task = SeedLateStartTask(db, intern, mentor);
+        await db.SaveChangesAsync();
+        var taskId = task.Id;
+
+        var controller = MakeMentorController(db, mentor.UserId);
+        var result = await controller.ResolveTask(taskId, new MentorResolveTaskRequest("ExtendStart", Today.AddDays(-1)));
+
+        Assert.Equal(400, StatusOf(result));
+        await using var verify = _database.CreateContext();
+        Assert.Equal(InternSystem.Core.Entities.TaskStatus.Pending, (await verify.Tasks.FindAsync(taskId))!.Status);
+    }
+
+    [Fact]
+    public async Task ResolveWithdrawSetsStatusAndClosesTask()
+    {
+        await using var db = _database.CreateContext();
+        var (intern, mentor) = SeedGraph(db, InternshipStatus.Active, Today.AddDays(-5), Today.AddDays(30));
+        await db.SaveChangesAsync();
+        var task = SeedLateStartTask(db, intern, mentor);
+        await db.SaveChangesAsync();
+        var taskId = task.Id;
+
+        var controller = MakeMentorController(db, mentor.UserId);
+        var result = await controller.ResolveTask(taskId, new MentorResolveTaskRequest("Withdraw", null));
+
+        Assert.Equal(200, StatusOf(result));
+        await using var verify = _database.CreateContext();
+        Assert.Equal(InternshipStatus.Withdrawn, (await verify.Interns.FindAsync(intern.Id))!.Status);
+        Assert.Equal(InternSystem.Core.Entities.TaskStatus.Completed, (await verify.Tasks.FindAsync(taskId))!.Status);
+    }
+
+    [Fact]
+    public async Task ResolveWithdrawWritesHistory()
+    {
+        await using var db = _database.CreateContext();
+        var (intern, mentor) = SeedGraph(db, InternshipStatus.Active, Today.AddDays(-5), Today.AddDays(30));
+        await db.SaveChangesAsync();
+        var task = SeedLateStartTask(db, intern, mentor);
+        await db.SaveChangesAsync();
+
+        var controller = MakeMentorController(db, mentor.UserId);
+        await controller.ResolveTask(task.Id, new MentorResolveTaskRequest("Withdraw", null));
+
+        await using var verify = _database.CreateContext();
+        var rows = await verify.InternStatusHistories
+            .Where(h => h.InternId == intern.Id && h.Status == InternshipStatus.Withdrawn && h.ToDate == null)
+            .ToListAsync();
+        Assert.Single(rows);
+    }
+
+    [Fact]
+    public async Task ResolveDismissIncrementsAndStaysPending()
+    {
+        await using var db = _database.CreateContext();
+        var (intern, mentor) = SeedGraph(db, InternshipStatus.Active, Today.AddDays(-5), Today.AddDays(30));
+        await db.SaveChangesAsync();
+        var task = SeedLateStartTask(db, intern, mentor);
+        await db.SaveChangesAsync();
+        var taskId = task.Id;
+
+        var controller = MakeMentorController(db, mentor.UserId);
+        var result = await controller.ResolveTask(taskId, new MentorResolveTaskRequest("Dismiss", null));
+
+        Assert.Equal(200, StatusOf(result));
+        await using var verify = _database.CreateContext();
+        var reloaded = await verify.Tasks.FindAsync(taskId);
+        Assert.Equal(1, reloaded!.DismissCount);
+        Assert.Equal(InternSystem.Core.Entities.TaskStatus.Pending, reloaded.Status);
+    }
+
+    [Fact]
+    public async Task ThirdDismissCreatesAdminNotification()
+    {
+        await using var db = _database.CreateContext();
+        var admin = MakeUser(db, UserRole.Admin);
+        var (intern, mentor) = SeedGraph(db, InternshipStatus.Active, Today.AddDays(-5), Today.AddDays(30));
+        await db.SaveChangesAsync();
+        var adminId = admin.Id;
+        var task = SeedLateStartTask(db, intern, mentor);
+        await db.SaveChangesAsync();
+        var taskId = task.Id;
+
+        var controller = MakeMentorController(db, mentor.UserId);
+        await controller.ResolveTask(taskId, new MentorResolveTaskRequest("Dismiss", null));
+        await controller.ResolveTask(taskId, new MentorResolveTaskRequest("Dismiss", null));
+        await controller.ResolveTask(taskId, new MentorResolveTaskRequest("Dismiss", null));
+
+        await using var verify = _database.CreateContext();
+        Assert.Equal(3, (await verify.Tasks.FindAsync(taskId))!.DismissCount);
+        var adminNotifs = await verify.Notifications
+            .Where(n => n.UserId == adminId && n.Title.Contains("Late-start task dismissed"))
+            .ToListAsync();
+        Assert.Single(adminNotifs);
+    }
+
+    // ---------- Group D: task guards ----------
+
+    [Fact]
+    public async Task MentorCannotResolveOthersTask()
+    {
+        await using var db = _database.CreateContext();
+        var (intern, mentor) = SeedGraph(db, InternshipStatus.Active, Today.AddDays(-5), Today.AddDays(30));
+        var otherMentor = new Mentor
+        {
+            User = MakeUser(db, UserRole.Mentor),
+            FullName = "Other Mentor",
+            Designation = "Mentor",
+            DepartmentId = 1
+        };
+        db.Mentors.Add(otherMentor);
+        await db.SaveChangesAsync();
+        var task = SeedLateStartTask(db, intern, mentor);
+        await db.SaveChangesAsync();
+        var taskId = task.Id;
+
+        var controller = MakeMentorController(db, otherMentor.UserId);
+        var result = await controller.ResolveTask(taskId, new MentorResolveTaskRequest("Dismiss", null));
+
+        Assert.Equal(404, StatusOf(result));
+    }
+
+    [Fact]
+    public async Task NonLateStartTaskRejected()
+    {
+        await using var db = _database.CreateContext();
+        var (intern, mentor) = SeedGraph(db, InternshipStatus.Active, Today.AddDays(-5), Today.AddDays(30));
+        await db.SaveChangesAsync();
+        var task = SeedLateStartTask(db, intern, mentor);
+        task.TaskType = "General";
+        await db.SaveChangesAsync();
+        var taskId = task.Id;
+
+        var controller = MakeMentorController(db, mentor.UserId);
+        var result = await controller.ResolveTask(taskId, new MentorResolveTaskRequest("Dismiss", null));
+
+        Assert.Equal(400, StatusOf(result));
+    }
+
+    // ---------- endpoint-test helpers ----------
+
+    // Users.Id = 1 is the seeded admin and survives SqlServerTestDatabase.ResetAsync.
+    private const int AdminUserId = 1;
+
+    private static ClaimsPrincipal Principal(int userId) =>
+        new(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, userId.ToString()) }, "test"));
+
+    private static T WithUser<T>(T controller, int userId) where T : ControllerBase
+    {
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = Principal(userId) }
+        };
+        return controller;
+    }
+
+    // The tested actions only touch the DbContext, so the remaining collaborators
+    // are inert. Notifications is supplied because the dismiss path uses it.
+    private static AdminController MakeAdminController(AppDbContext db, int userId) =>
+        WithUser(new AdminController(db, null!, null!, null!, null!, null!, null!, null!), userId);
+
+    private static MentorController MakeMentorController(AppDbContext db, int userId) =>
+        WithUser(new MentorController(db, null!, null!, null!, null!, new NotificationService(db), null!, null!, null!), userId);
+
+    private static int StatusOf(IActionResult result) => result switch
+    {
+        ObjectResult o => o.StatusCode ?? StatusCodes.Status200OK,
+        StatusCodeResult s => s.StatusCode,
+        _ => throw new Xunit.Sdk.XunitException($"Unexpected action result: {result.GetType().Name}")
+    };
+
+    private static InternTask SeedLateStartTask(AppDbContext db, Intern intern, Mentor mentor)
+    {
+        var task = new InternTask
+        {
+            InternId = intern.Id,
+            AssignedByMentorId = mentor.Id,
+            Title = "Late start resolution needed",
+            Description = "seed",
+            TaskType = "LateStartResolution",
+            Status = InternSystem.Core.Entities.TaskStatus.Pending
+        };
+        db.Tasks.Add(task);
+        return task;
+    }
 }
