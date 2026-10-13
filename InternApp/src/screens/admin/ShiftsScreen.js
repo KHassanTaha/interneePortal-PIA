@@ -158,7 +158,7 @@ export default function ShiftsScreen({navigation}) {
 
   return (
     <ScreenBackground style={styles.container}>
-      <AppHeader hideTitle onBack={() => navigation.goBack()} title="Shifts" right={<TouchableOpacity style={styles.addBtn} onPress={openCreate}><Icon name="plus" size={16} color="#fff" /><Text style={styles.addBtnText}>Add Shift</Text></TouchableOpacity>} />
+      <AppHeader hideTitle onBack={() => navigation.goBack()} title="Shifts" right={<TouchableOpacity style={styles.addBtn} onPress={openCreate}><Icon name="plus" size={16} color="#fff" /><Text numberOfLines={1} ellipsizeMode="tail" style={styles.addBtnText}>Add Shift</Text></TouchableOpacity>} />
 
       <ScrollView contentContainerStyle={{paddingBottom:100, flexGrow:1}} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => {setRefreshing(true); fetchShiftsData();}} tintColor={colors.primary}/>}>
         <View style={styles.searchWrap}>
@@ -175,41 +175,41 @@ export default function ShiftsScreen({navigation}) {
         <FilterChips compact options={[{key: 'all', label: 'All Scopes'}, {key: 'company', label: 'Company'}, {key: 'dept', label: 'Department'}]} value={scopeFilter} onChange={setScopeFilter} idPrefix="shift-scope" />
 
         {filtered.length === 0 ? (
-          <View style={styles.emptyBox}><Icon name="clock" size={44} color={colors.textMuted} /><Text style={styles.emptyText}>No shifts found</Text></View>
+          <View style={styles.emptyBox}><Icon name="clock" size={44} color={colors.textMuted} /><Text numberOfLines={1} ellipsizeMode="tail" style={styles.emptyText}>No shifts found</Text></View>
         ) : filtered.map(s => (
           <View key={s.id} style={styles.card}>
             <View style={styles.cardTop}>
               <View style={styles.cardLeft}>
                 <View style={[styles.dot, {backgroundColor: s.isCompanyWide ? colors.primary : colors.accent}]} />
                 <View style={{flex:1}}>
-                  <Text style={styles.shiftName}>{s.name}</Text>
-                  <Text style={styles.shiftTime}>{formatTime(s.startTime)} – {formatTime(s.endTime)}</Text>
+                  <Text numberOfLines={1} ellipsizeMode="tail" style={styles.shiftName}>{s.name}</Text>
+                  <Text numberOfLines={1} ellipsizeMode="tail" style={styles.shiftTime}>{formatTime(s.startTime)} – {formatTime(s.endTime)}</Text>
                 </View>
               </View>
               <View style={[styles.typeBadge, {backgroundColor: (s.isCompanyWide ? colors.primary : colors.accent) + '22'}]}>
-                <Text style={[styles.typeText, {color: s.isCompanyWide ? colors.primary : colors.accent}]}>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.typeText, {color: s.isCompanyWide ? colors.primary : colors.accent}]}>
                   {s.isCompanyWide ? 'Company' : s.department || 'Dept'}
                 </Text>
               </View>
             </View>
             <View style={styles.cardMeta}>
               <View style={[styles.statusBadge, {backgroundColor: s.isActive ? colors.success + '22' : colors.textMuted + '22'}]}>
-                <Text style={[styles.statusText, {color: s.isActive ? colors.success : colors.textMuted}]}>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.statusText, {color: s.isActive ? colors.success : colors.textMuted}]}>
                   {s.isActive ? 'Active' : 'Inactive'}
                 </Text>
               </View>
-              <Text style={styles.assignedText}>{s.assignedInterns} assigned</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.assignedText}>{s.assignedInterns} assigned</Text>
               <TouchableOpacity style={styles.iconBtn} onPress={() => toggleShift(s)}>
                 <Icon name="refresh" size={15} color={colors.textAccent} />
-                <Text style={styles.iconBtnText}>{s.isActive ? 'Deactivate' : 'Activate'}</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.iconBtnText}>{s.isActive ? 'Deactivate' : 'Activate'}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.iconBtn} onPress={() => openEdit(s)}>
                 <Icon name="edit" size={14} color={colors.textAccent} />
-                <Text style={styles.iconBtnText}>Edit</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.iconBtnText}>Edit</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.iconBtn} onPress={() => loadImpact(s)}>
                 <Icon name="users" size={15} color={colors.textAccent} />
-                <Text style={styles.iconBtnText}>Impact</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.iconBtnText}>Impact</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -218,71 +218,71 @@ export default function ShiftsScreen({navigation}) {
       </ScrollView>
 
       <SwipeableModal visible={showForm} transparent overlayStyle={styles.modalOverlay} sheetStyle={styles.modalContent} onRequestClose={() => setShowForm(false)}>
-            <Text style={styles.modalTitle}>{editing ? 'Edit Shift' : 'Add Shift'}</Text>
+            <Text numberOfLines={1} ellipsizeMode="tail" style={styles.modalTitle}>{editing ? 'Edit Shift' : 'Add Shift'}</Text>
             <View style={styles.modalField}>
-              <Text style={styles.fieldLabel}>Shift Name *</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.fieldLabel}>Shift Name *</Text>
               <TextInput style={styles.fieldInput} placeholder="e.g. General / Night" placeholderTextColor={colors.textMuted} value={formName} onChangeText={setFormName} />
             </View>
             <View style={styles.timeRow}>
               <View style={styles.timeField}>
-                <Text style={styles.fieldLabel}>Start (HH:MM)</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.fieldLabel}>Start (HH:MM)</Text>
                 <TextInput style={styles.fieldInput} placeholder="09:00" placeholderTextColor={colors.textMuted} value={formStart} onChangeText={setFormStart} />
               </View>
               <View style={styles.timeField}>
-                <Text style={styles.fieldLabel}>End (HH:MM)</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.fieldLabel}>End (HH:MM)</Text>
                 <TextInput style={styles.fieldInput} placeholder="17:00" placeholderTextColor={colors.textMuted} value={formEnd} onChangeText={setFormEnd} />
               </View>
             </View>
             <View style={styles.scopeRow}>
               <TouchableOpacity style={[styles.scopeBtn, formCompany && styles.scopeBtnOn]} onPress={() => setFormCompany(true)}>
-                <Text style={[styles.scopeText, formCompany && styles.scopeTextOn]}>Company-wide</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.scopeText, formCompany && styles.scopeTextOn]}>Company-wide</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.scopeBtn, !formCompany && styles.scopeBtnOn]} onPress={() => setFormCompany(false)}>
-                <Text style={[styles.scopeText, !formCompany && styles.scopeTextOn]}>Department</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.scopeText, !formCompany && styles.scopeTextOn]}>Department</Text>
               </TouchableOpacity>
             </View>
             {!formCompany && (
               <View style={styles.modalField}>
-                <Text style={styles.fieldLabel}>Department *</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.fieldLabel}>Department *</Text>
                 <Dropdown id="shift-dept" value={formDept} onChange={setFormDept} options={[{value: null, label: 'Select...'}, ...departments]} />
               </View>
             )}
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowForm(false)}><Text style={styles.cancelBtnText}>Cancel</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowForm(false)}><Text numberOfLines={1} ellipsizeMode="tail" style={styles.cancelBtnText}>Cancel</Text></TouchableOpacity>
               <TouchableOpacity style={styles.createBtn} onPress={saveShift} disabled={saving}>
-                {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.createBtnText}>{editing ? 'Update' : 'Create'}</Text>}
+                {saving ? <ActivityIndicator color="#fff" /> : <Text numberOfLines={1} ellipsizeMode="tail" style={styles.createBtnText}>{editing ? 'Update' : 'Create'}</Text>}
               </TouchableOpacity>
             </View>
       </SwipeableModal>
 
       <SwipeableModal visible={!!impactShift} transparent overlayStyle={styles.modalOverlay} sheetStyle={styles.modalContent} onRequestClose={() => setImpactShift(null)}>
           <View>
-            <Text style={styles.modalTitle}>Impact — {impactShift?.name}</Text>
+            <Text numberOfLines={1} ellipsizeMode="tail" style={styles.modalTitle}>Impact — {impactShift?.name}</Text>
             {!impact ? <ActivityIndicator color={colors.textAccent} style={{marginVertical: 24}} /> : (
               <>
-                <Text style={styles.fieldLabel}>Assigned interns ({impact.assignedInterns.length})</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.fieldLabel}>Assigned interns ({impact.assignedInterns.length})</Text>
                 {impact.assignedInterns.length === 0 ? (
-                  <Text style={styles.emptyText}>None</Text>
+                  <Text numberOfLines={1} ellipsizeMode="tail" style={styles.emptyText}>None</Text>
                 ) : impactGroups.map(g => (
                   <View key={`${g.deptId}`} style={styles.impactGroup}>
-                    <Text style={styles.impactGroupTitle}>{g.name} ({g.interns.length})</Text>
+                    <Text numberOfLines={1} ellipsizeMode="tail" style={styles.impactGroupTitle}>{g.name} ({g.interns.length})</Text>
                     {g.interns.map(i => (
-                      <View key={i.id} style={styles.impactRow}><Icon name="user" size={14} color={colors.textSecondary} /><Text style={styles.impactText}>{i.fullName}</Text></View>
+                      <View key={i.id} style={styles.impactRow}><Icon name="user" size={14} color={colors.textSecondary} /><Text numberOfLines={1} ellipsizeMode="tail" style={styles.impactText}>{i.fullName}</Text></View>
                     ))}
                   </View>
                 ))}
-                <Text style={[styles.fieldLabel, {marginTop: 12}]}>Pending shift-change requests ({impact.openRequests.length})</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.fieldLabel, {marginTop: 12}]}>Pending shift-change requests ({impact.openRequests.length})</Text>
                 {impact.openRequests.length === 0 ? (
-                  <Text style={styles.emptyText}>None</Text>
+                  <Text numberOfLines={1} ellipsizeMode="tail" style={styles.emptyText}>None</Text>
                 ) : impact.openRequests.map(r => (
-                  <View key={r.id} style={styles.impactRow}><Icon name="clock" size={14} color={colors.textSecondary} /><Text style={styles.impactText}>{r.internName}</Text></View>
+                  <View key={r.id} style={styles.impactRow}><Icon name="clock" size={14} color={colors.textSecondary} /><Text numberOfLines={1} ellipsizeMode="tail" style={styles.impactText}>{r.internName}</Text></View>
                 ))}
-                {!impact.canDelete && <Text style={styles.warnText}>This shift cannot be deactivated or deleted while interns or open requests reference it.</Text>}
+                {!impact.canDelete && <Text numberOfLines={1} ellipsizeMode="tail" style={styles.warnText}>This shift cannot be deactivated or deleted while interns or open requests reference it.</Text>}
                 <View style={styles.modalActions}>
-                  <TouchableOpacity style={styles.cancelBtn} onPress={() => setImpactShift(null)}><Text style={styles.cancelBtnText}>Close</Text></TouchableOpacity>
+                  <TouchableOpacity style={styles.cancelBtn} onPress={() => setImpactShift(null)}><Text numberOfLines={1} ellipsizeMode="tail" style={styles.cancelBtnText}>Close</Text></TouchableOpacity>
                   <TouchableOpacity style={[styles.createBtn, styles.deleteBtn]} disabled={!impact.canDelete} onPress={() => deleteShift(impactShift)}>
                     <Icon name="trash" size={15} color="#fff" />
-                    <Text style={styles.createBtnText}>Delete</Text>
+                    <Text numberOfLines={1} ellipsizeMode="tail" style={styles.createBtnText}>Delete</Text>
                   </TouchableOpacity>
                 </View>
               </>

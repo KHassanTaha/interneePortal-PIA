@@ -136,46 +136,46 @@ export default function SettingsScreen({navigation}) {
 
         {/* Scoring Parameters */}
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Scoring Parameters</Text>
+          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.sectionTitle}>Scoring Parameters</Text>
           <View style={styles.fieldRow}>
             <View style={styles.fieldHalf}>
-              <Text style={styles.fieldLabel}>Grace Minutes</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.fieldLabel}>Grace Minutes</Text>
               <TextInput style={styles.fieldInput} keyboardType="numeric" value={editingGrace} onChangeText={setEditingGrace} placeholder="15" placeholderTextColor={colors.textMuted} />
-              <Text style={styles.hint}>Max minutes after shift start before marking Late</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.hint}>Max minutes after shift start before marking Late</Text>
             </View>
             <View style={styles.fieldHalf}>
-              <Text style={styles.fieldLabel}>Threshold %</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.fieldLabel}>Threshold %</Text>
               <TextInput style={styles.fieldInput} keyboardType="decimal-pad" value={editingThreshold} onChangeText={setEditingThreshold} placeholder="80" placeholderTextColor={colors.textMuted} />
-              <Text style={styles.hint}>Minimum % to qualify for certificate</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.hint}>Minimum % to qualify for certificate</Text>
             </View>
           </View>
           <View style={styles.fieldRow}>
             <View style={styles.fieldHalf}>
-              <Text style={styles.fieldLabel}>Allowed Leave Days</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.fieldLabel}>Allowed Leave Days</Text>
               <TextInput style={styles.fieldInput} keyboardType="numeric" value={editingLeaveDays} onChangeText={setEditingLeaveDays} placeholder="0" placeholderTextColor={colors.textMuted} />
-              <Text style={styles.hint}>On-leave days that still count as full attendance</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.hint}>On-leave days that still count as full attendance</Text>
             </View>
             <View style={styles.fieldHalf}>
-              <Text style={styles.fieldLabel}>Task Completion %</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.fieldLabel}>Task Completion %</Text>
               <TextInput style={styles.fieldInput} keyboardType="decimal-pad" value={editingTaskThreshold} onChangeText={setEditingTaskThreshold} placeholder="80" placeholderTextColor={colors.textMuted} />
-              <Text style={styles.hint}>Minimum task completion % for certificate</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.hint}>Minimum task completion % for certificate</Text>
             </View>
           </View>
           <TouchableOpacity style={styles.saveBtn} onPress={saveSettings} disabled={savingSettings}>
-            {savingSettings ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save Settings</Text>}
+            {savingSettings ? <ActivityIndicator color="#fff" /> : <Text numberOfLines={1} ellipsizeMode="tail" style={styles.saveBtnText}>Save Settings</Text>}
           </TouchableOpacity>
         </View>
 
         {/* Shifts */}
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Configurability</Text>
+          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.sectionTitle}>Configurability</Text>
           <TouchableOpacity style={styles.linkRow} onPress={() => navigation.getParent()?.navigate('AdminShifts')}>
             <View style={[styles.linkIcon, {backgroundColor: colors.primary + '18'}]}>
               <Icon name="clock" size={18} color={colors.textAccent} />
             </View>
             <View style={{flex:1}}>
-              <Text style={styles.linkLabel}>Shifts</Text>
-              <Text style={styles.linkHint}>Configure company & department shift timings</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.linkLabel}>Shifts</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.linkHint}>Configure company & department shift timings</Text>
             </View>
             <Icon name="chevronRight" size={18} color={colors.textMuted} />
           </TouchableOpacity>
@@ -184,19 +184,19 @@ export default function SettingsScreen({navigation}) {
         {/* Public Holidays */}
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Public Holidays</Text>
+            <Text numberOfLines={1} ellipsizeMode="tail" style={styles.sectionTitle}>Public Holidays</Text>
             <TouchableOpacity style={styles.addBtn} onPress={() => setShowAddHoliday(true)}>
               <Icon name="plus" size={14} color={colors.textAccent} />
-              <Text style={styles.addBtnText}>Add</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.addBtnText}>Add</Text>
             </TouchableOpacity>
           </View>
           {holidays.length === 0 ? (
-            <Text style={styles.emptyText}>No public holidays configured.</Text>
+            <Text numberOfLines={1} ellipsizeMode="tail" style={styles.emptyText}>No public holidays configured.</Text>
           ) : holidays.map(h => (
             <View key={h.id} style={styles.holidayRow}>
               <View style={{flex:1}}>
-                <Text style={styles.holidayName}>{h.name}</Text>
-                <Text style={styles.holidayDate}>{new Date(h.date).toLocaleDateString('en-US', {weekday:'long', year:'numeric', month:'long', day:'numeric'})}</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.holidayName}>{h.name}</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.holidayDate}>{new Date(h.date).toLocaleDateString('en-US', {weekday:'long', year:'numeric', month:'long', day:'numeric'})}</Text>
               </View>
               <TouchableOpacity style={styles.deleteBtn} onPress={() => startEditHoliday(h)}>
                 <Icon name="edit" size={14} color={colors.textAccent} />
@@ -213,9 +213,9 @@ export default function SettingsScreen({navigation}) {
 
       {/* Add Holiday Modal */}
       <SwipeableModal visible={showAddHoliday} transparent overlayStyle={styles.modalOverlay} sheetStyle={styles.modalContent} onRequestClose={() => setShowAddHoliday(false)}>
-            <Text style={styles.modalTitle}>{editingHoliday ? 'Edit Public Holiday' : 'Add Public Holiday'}</Text>
+            <Text numberOfLines={1} ellipsizeMode="tail" style={styles.modalTitle}>{editingHoliday ? 'Edit Public Holiday' : 'Add Public Holiday'}</Text>
             <View style={styles.modalField}>
-              <Text style={styles.fieldLabel}>Holiday Name</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.fieldLabel}>Holiday Name</Text>
               <TextInput style={styles.fieldInput} placeholder="e.g. Independence Day" placeholderTextColor={colors.textMuted} value={holidayName} onChangeText={setHolidayName} />
             </View>
             <View style={styles.modalField}>
@@ -223,10 +223,10 @@ export default function SettingsScreen({navigation}) {
             </View>
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => {setShowAddHoliday(false); setEditingHoliday(null); setHolidayName(''); setHolidayDate(null);}}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.createBtn} onPress={addHoliday} disabled={savingHoliday}>
-                {savingHoliday ? <ActivityIndicator color="#fff" /> : <Text style={styles.createBtnText}>{editingHoliday ? 'Update Holiday' : 'Add Holiday'}</Text>}
+                {savingHoliday ? <ActivityIndicator color="#fff" /> : <Text numberOfLines={1} ellipsizeMode="tail" style={styles.createBtnText}>{editingHoliday ? 'Update Holiday' : 'Add Holiday'}</Text>}
               </TouchableOpacity>
             </View>
       </SwipeableModal>

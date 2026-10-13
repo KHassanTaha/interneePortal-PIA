@@ -243,7 +243,7 @@ export default function MentorInternsScreen({navigation}) {
       <AppHeader home title="Interns" right={(
         <TouchableOpacity style={styles.headerBtn} onPress={openCreate}>
           <Icon name="userPlus" size={16} color="#fff" />
-          <Text style={styles.headerBtnText}>Add Intern</Text>
+          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.headerBtnText}>Add Intern</Text>
         </TouchableOpacity>
       )} />
       <ScrollView contentContainerStyle={{paddingBottom:100, flexGrow:1}} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => {setRefreshing(true); fetchData();}} tintColor={colors.primary}/>}>
@@ -257,42 +257,42 @@ export default function MentorInternsScreen({navigation}) {
           )}
         </View>
         {visible.length === 0 ? (
-          <View style={styles.emptyBox}><Icon name="gradCap" size={44} color={colors.textMuted} /><Text style={styles.emptyText}>No interns</Text></View>
+          <View style={styles.emptyBox}><Icon name="gradCap" size={44} color={colors.textMuted} /><Text numberOfLines={1} ellipsizeMode="tail" style={styles.emptyText}>No interns</Text></View>
         ) : visible.map(i => (
           <TouchableOpacity key={i.id} style={styles.card} onPress={() => openDetail(i)}>
             <View style={styles.cardTop}>
               <View style={styles.avatarBox}><InternAvatar name={i.fullName} thumbPath={i.photoThumbPath} size={44} /></View>
               <View style={{flex:1}}>
-                <Text style={styles.name}>{i.fullName}</Text>
-                <Text style={styles.sub}>@{i.username} • {i.department}</Text>
-                {i.shift && <Text style={styles.sub2}>Shift: {i.shift}</Text>}
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.name}>{i.fullName}</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.sub}>@{i.username} • {i.department}</Text>
+                {i.shift && <Text numberOfLines={1} ellipsizeMode="tail" style={styles.sub2}>Shift: {i.shift}</Text>}
               </View>
               <View style={[styles.badge, {backgroundColor: i.isActive ? colors.success+'22' : colors.error+'22'}]}>
-                <Text style={[styles.badgeText, {color: i.isActive ? colors.success : colors.error}]}>{i.isActive ? 'Active' : 'Inactive'}</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.badgeText, {color: i.isActive ? colors.success : colors.error}]}>{i.isActive ? 'Active' : 'Inactive'}</Text>
               </View>
             </View>
             {i.todayAttendance && (
               <View style={styles.todayRow}>
                 {[['In', i.todayAttendance.inTime, i.todayAttendance.checkInPhotoPath], ['Out', i.todayAttendance.outTime, i.todayAttendance.checkOutPhotoPath]].map(([label, time, photo]) => (
                   <View key={label} style={styles.todayItem}>
-                    <Text style={styles.todayLabel}>{label}</Text>
+                    <Text numberOfLines={1} ellipsizeMode="tail" style={styles.todayLabel}>{label}</Text>
                     {photo ? (
                       <TouchableOpacity id={`today-${label.toLowerCase()}-${i.id}`} onPress={() => setViewerUri(fileUrl(photo))}>
                         <Image source={{uri: fileUrl(photo)}} style={styles.todayThumb} />
                       </TouchableOpacity>
                     ) : (
-                      <Text style={styles.todayTime}>{time ? new Date(time).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : '—'}</Text>
+                      <Text numberOfLines={1} ellipsizeMode="tail" style={styles.todayTime}>{time ? new Date(time).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : '—'}</Text>
                     )}
-                    <Text style={styles.todayCaption}>{time ? new Date(time).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : '—'}</Text>
+                    <Text numberOfLines={1} ellipsizeMode="tail" style={styles.todayCaption}>{time ? new Date(time).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : '—'}</Text>
                   </View>
                 ))}
               </View>
             )}
             <View style={styles.cardActions}>
-              <TouchableOpacity style={styles.actionBtn} onPress={() => openDetail(i)}><Icon name="eye" size={14} color={colors.textAccent} /><Text style={styles.actionText}>Detail</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('MentorEditIntern', {intern: i})}><Icon name="pencil" size={14} color={colors.textAccent} /><Text style={styles.actionText}>Edit</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.actionBtn} onPress={() => openShiftChange(i)}><Icon name="refresh" size={14} color={colors.textAccentAlt} /><Text style={[styles.actionText, {color:colors.textAccentAlt}]}>Shift</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.actionBtn} onPress={() => openTransfer(i)}><Icon name="transfer" size={14} color={colors.info} /><Text style={[styles.actionText, {color:colors.info}]}>Transfer</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.actionBtn} onPress={() => openDetail(i)}><Icon name="eye" size={14} color={colors.textAccent} /><Text numberOfLines={1} ellipsizeMode="tail" style={styles.actionText}>Detail</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('MentorEditIntern', {intern: i})}><Icon name="pencil" size={14} color={colors.textAccent} /><Text numberOfLines={1} ellipsizeMode="tail" style={styles.actionText}>Edit</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.actionBtn} onPress={() => openShiftChange(i)}><Icon name="refresh" size={14} color={colors.textAccentAlt} /><Text numberOfLines={1} ellipsizeMode="tail" style={[styles.actionText, {color:colors.textAccentAlt}]}>Shift</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.actionBtn} onPress={() => openTransfer(i)}><Icon name="transfer" size={14} color={colors.info} /><Text numberOfLines={1} ellipsizeMode="tail" style={[styles.actionText, {color:colors.info}]}>Transfer</Text></TouchableOpacity>
             </View>
           </TouchableOpacity>
         ))}
@@ -306,7 +306,7 @@ export default function MentorInternsScreen({navigation}) {
                 <InternAvatar name={detailTarget?.fullName} thumbPath={detailData?.photoThumbPath || detailTarget?.photoThumbPath} size={64} />
               </View>
               <View style={styles.detailHeader}>
-                <Text style={styles.modalTitle}>{detailTarget?.fullName}</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.modalTitle}>{detailTarget?.fullName}</Text>
                 <TouchableOpacity onPress={() => setDetailTarget(null)}><Icon name="close" size={18} color={colors.textSecondary} /></TouchableOpacity>
               </View>
               {loadingDetail ? <ActivityIndicator size="large" color={colors.textAccent} style={{marginVertical:30}} /> : (
@@ -332,29 +332,29 @@ export default function MentorInternsScreen({navigation}) {
                     })(),
                   ].map(r => (
                     <View key={r.label} style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>{r.label}</Text>
-                      <Text style={styles.detailValue}>{r.value}</Text>
+                      <Text numberOfLines={1} ellipsizeMode="tail" style={styles.detailLabel}>{r.label}</Text>
+                      <Text numberOfLines={1} ellipsizeMode="tail" style={styles.detailValue}>{r.value}</Text>
                     </View>
                   ))}
                   <View style={styles.detailActions}>
-                    <TouchableOpacity style={styles.detailActionBtn} onPress={() => setActiveSheet('docs')}><Icon name="folder" size={16} color={colors.textAccent} /><Text style={styles.detailActionText}>Docs ({internDocs.uploaded.length + internDocs.issued.length})</Text></TouchableOpacity>
-                    <TouchableOpacity style={styles.detailActionBtn} onPress={() => setActiveSheet('attendance')}><Icon name="mapPin" size={16} color={colors.textAccent} /><Text style={styles.detailActionText}>Attendance ({internAttendance.length})</Text></TouchableOpacity>
+                    <TouchableOpacity style={styles.detailActionBtn} onPress={() => setActiveSheet('docs')}><Icon name="folder" size={16} color={colors.textAccent} /><Text numberOfLines={1} ellipsizeMode="tail" style={styles.detailActionText}>Docs ({internDocs.uploaded.length + internDocs.issued.length})</Text></TouchableOpacity>
+                    <TouchableOpacity style={styles.detailActionBtn} onPress={() => setActiveSheet('attendance')}><Icon name="mapPin" size={16} color={colors.textAccent} /><Text numberOfLines={1} ellipsizeMode="tail" style={styles.detailActionText}>Attendance ({internAttendance.length})</Text></TouchableOpacity>
                   </View>
                   {activeSheet === 'docs' && (
                     <View style={styles.sheetSection}>
-                      <Text style={styles.sheetTitle}>Documents</Text>
+                      <Text numberOfLines={1} ellipsizeMode="tail" style={styles.sheetTitle}>Documents</Text>
                       {internDocs.uploaded.length === 0 && internDocs.issued.length === 0 ? (
-                        <Text style={styles.sheetEmpty}>No documents uploaded.</Text>
+                        <Text numberOfLines={1} ellipsizeMode="tail" style={styles.sheetEmpty}>No documents uploaded.</Text>
                       ) : (
                         [...internDocs.uploaded, ...internDocs.issued].map((d,i) => (
                           <TouchableOpacity key={i} style={styles.docRow} onPress={() => d.filePath && openFilePath(d.filePath)}>
                             <Icon name="file" size={14} color={colors.textAccent} />
                             <View style={styles.docInfo}>
-                              <Text style={styles.docName}>{d.documentType || d.name || 'Official Document'}</Text>
+                              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.docName}>{d.documentType || d.name || 'Official Document'}</Text>
                               {d.documentType ? (
-                                <Text style={styles.docMeta}>{d.status} · {new Date(d.uploadedAt).toLocaleDateString()}</Text>
+                                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.docMeta}>{d.status} · {new Date(d.uploadedAt).toLocaleDateString()}</Text>
                               ) : (
-                                <Text style={styles.docMeta}>Issued {d.issuedAt ? new Date(d.issuedAt).toLocaleDateString() : ''}</Text>
+                                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.docMeta}>Issued {d.issuedAt ? new Date(d.issuedAt).toLocaleDateString() : ''}</Text>
                               )}
                             </View>
                           </TouchableOpacity>
@@ -364,13 +364,13 @@ export default function MentorInternsScreen({navigation}) {
                   )}
                   {activeSheet === 'attendance' && (
                     <View style={styles.sheetSection}>
-                      <Text style={styles.sheetTitle}>Recent Attendance</Text>
+                      <Text numberOfLines={1} ellipsizeMode="tail" style={styles.sheetTitle}>Recent Attendance</Text>
                       {internAttendance.slice(0,10).map(a => (
                         <View key={a.id} style={styles.attRow}>
-                          <Text style={styles.attDate}>{new Date(a.timestamp).toLocaleDateString()}</Text>
-                          <Text style={[styles.attStatus, {color: a.status==='Present'?colors.success:colors.error}]}>{a.status}</Text>
-                          {a.arrivalStatus && <Text style={styles.attSlot}>Arr: {a.arrivalStatus}</Text>}
-                          {a.departureStatus && <Text style={styles.attSlot}>Dep: {a.departureStatus}</Text>}
+                          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.attDate}>{new Date(a.timestamp).toLocaleDateString()}</Text>
+                          <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.attStatus, {color: a.status==='Present'?colors.success:colors.error}]}>{a.status}</Text>
+                          {a.arrivalStatus && <Text numberOfLines={1} ellipsizeMode="tail" style={styles.attSlot}>Arr: {a.arrivalStatus}</Text>}
+                          {a.departureStatus && <Text numberOfLines={1} ellipsizeMode="tail" style={styles.attSlot}>Dep: {a.departureStatus}</Text>}
                         </View>
                       ))}
                     </View>
@@ -378,15 +378,15 @@ export default function MentorInternsScreen({navigation}) {
                 </>
               )}
               <View style={styles.modalActions}>
-                <TouchableOpacity style={styles.cancelBtn} onPress={() => setDetailTarget(null)}><Text style={styles.cancelBtnText}>Close</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.cancelBtn} onPress={() => setDetailTarget(null)}><Text numberOfLines={1} ellipsizeMode="tail" style={styles.cancelBtnText}>Close</Text></TouchableOpacity>
               </View>
             </ScrollView>
       </SwipeableModal>
 
       {/* Transfer Modal */}
       <SwipeableModal visible={showTransferModal} transparent overlayStyle={styles.modalOverlay} sheetStyle={styles.modalContent} onRequestClose={() => setShowTransferModal(false)}>
-            <Text style={styles.modalTitle}>Initiate Intern Transfer</Text>
-            <Text style={styles.subtitle}>Transfer {transferTarget?.fullName} to another mentor.</Text>
+            <Text numberOfLines={1} ellipsizeMode="tail" style={styles.modalTitle}>Initiate Intern Transfer</Text>
+            <Text numberOfLines={1} ellipsizeMode="tail" style={styles.subtitle}>Transfer {transferTarget?.fullName} to another mentor.</Text>
             {mentorDepts.length > 0 && (
               <View style={{marginBottom:12}}>
                 <Dropdown
@@ -404,32 +404,32 @@ export default function MentorInternsScreen({navigation}) {
               <Dropdown label="To Mentor" value={transferToMentor} onChange={setTransferToMentor} options={allMentors.filter(m => m.id !== detailTarget?.mentorId && (!transferDept || m.department === transferDept)).map(m => ({value: String(m.id), label: m.fullName}))} placeholder="Select mentor" inline />
             </View>
             <View style={styles.modalField}>
-              <Text style={styles.fieldLabel}>Note</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.fieldLabel}>Note</Text>
               <TextInput style={styles.fieldInput} placeholder="Optional" placeholderTextColor={colors.textMuted} value={transferNote} onChangeText={setTransferNote} />
             </View>
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowTransferModal(false)}><Text style={styles.cancelBtnText}>Cancel</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowTransferModal(false)}><Text numberOfLines={1} ellipsizeMode="tail" style={styles.cancelBtnText}>Cancel</Text></TouchableOpacity>
               <TouchableOpacity style={styles.createBtn} onPress={submitTransfer} disabled={sendingTransfer}>
-                {sendingTransfer ? <ActivityIndicator color="#fff" /> : <Text style={styles.createBtnText}>Initiate Transfer</Text>}
+                {sendingTransfer ? <ActivityIndicator color="#fff" /> : <Text numberOfLines={1} ellipsizeMode="tail" style={styles.createBtnText}>Initiate Transfer</Text>}
               </TouchableOpacity>
             </View>
       </SwipeableModal>
 
       {/* Shift Change Modal */}
       <SwipeableModal visible={showShiftChange} transparent overlayStyle={styles.modalOverlay} sheetStyle={styles.modalContent} onRequestClose={() => setShowShiftChange(false)}>
-            <Text style={styles.modalTitle}>Request Shift Change</Text>
-            <Text style={styles.subtitle}>Change shift for {shiftChangeTarget?.fullName}.</Text>
+            <Text numberOfLines={1} ellipsizeMode="tail" style={styles.modalTitle}>Request Shift Change</Text>
+            <Text numberOfLines={1} ellipsizeMode="tail" style={styles.subtitle}>Change shift for {shiftChangeTarget?.fullName}.</Text>
             <View style={{marginBottom:12}}>
               <Dropdown label="New Shift" value={shiftChangeTo} onChange={setShiftChangeTo} options={shifts.map(s => ({value: String(s.id), label: `${s.name} (${s.startTime?.slice(0,5)}-${s.endTime?.slice(0,5)})`}))} placeholder="Select shift" inline />
             </View>
             <View style={styles.modalField}>
-              <Text style={styles.fieldLabel}>Note</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.fieldLabel}>Note</Text>
               <TextInput style={styles.fieldInput} placeholder="Optional" placeholderTextColor={colors.textMuted} value={shiftChangeNote} onChangeText={setShiftChangeNote} />
             </View>
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowShiftChange(false)}><Text style={styles.cancelBtnText}>Cancel</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowShiftChange(false)}><Text numberOfLines={1} ellipsizeMode="tail" style={styles.cancelBtnText}>Cancel</Text></TouchableOpacity>
               <TouchableOpacity style={styles.createBtn} onPress={submitShiftChange} disabled={sendingShift}>
-                {sendingShift ? <ActivityIndicator color="#fff" /> : <Text style={styles.createBtnText}>Request Change</Text>}
+                {sendingShift ? <ActivityIndicator color="#fff" /> : <Text numberOfLines={1} ellipsizeMode="tail" style={styles.createBtnText}>Request Change</Text>}
               </TouchableOpacity>
             </View>
       </SwipeableModal>
@@ -437,40 +437,40 @@ export default function MentorInternsScreen({navigation}) {
       {/* Create Intern Modal */}
       <SwipeableModal visible={showCreate} transparent overlayStyle={styles.modalOverlay} sheetStyle={styles.modalContent} scrollable={false} onRequestClose={() => setShowCreate(false)}>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.modalTitle}>Add Intern</Text>
-              <Text style={styles.subtitle}>Username is auto-generated in the format firstname.PIA.001. The intern is assigned to your department by default.</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.modalTitle}>Add Intern</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.subtitle}>Username is auto-generated in the format firstname.PIA.001. The intern is assigned to your department by default.</Text>
 
               <View style={styles.modalField}>
-                <Text style={styles.fieldLabel}>Full Name *</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.fieldLabel}>Full Name *</Text>
                 <TextInput style={styles.fieldInput} placeholder="e.g. Ali Raza" placeholderTextColor={colors.textMuted} value={createForm.fullName} onChangeText={v => setCreateForm(f => ({...f, fullName: v}))} />
               </View>
 
               <View style={styles.modalField}>
-                <Text style={styles.fieldLabel}>Gender</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.fieldLabel}>Gender</Text>
                 <View style={styles.segRow}>
                   {['Male','Female'].map(g => (
                     <TouchableOpacity key={g} style={[styles.seg, createForm.gender === g && styles.segActive]} onPress={() => setCreateForm(f => ({...f, gender: g}))}>
-                      <Text style={[styles.segText, createForm.gender === g && styles.segTextActive]}>{g}</Text>
+                      <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.segText, createForm.gender === g && styles.segTextActive]}>{g}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               </View>
 
               <View style={styles.usernameCard}>
-                <Text style={styles.fieldLabel}>Auto-Generated Username</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.fieldLabel}>Auto-Generated Username</Text>
                 <View style={styles.usernameRow}>
                   <Icon name="key" size={15} color={colors.textAccent} />
-                  <Text style={styles.usernameValue}>{getAutoUsername()}</Text>
+                  <Text numberOfLines={1} ellipsizeMode="tail" style={styles.usernameValue}>{getAutoUsername()}</Text>
                 </View>
               </View>
 
               <View style={styles.modalField}>
-                <Text style={styles.fieldLabel}>Custom Username (optional)</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.fieldLabel}>Custom Username (optional)</Text>
                 <TextInput style={styles.fieldInput} placeholder="Leave blank to auto-generate" placeholderTextColor={colors.textMuted} autoCapitalize="none" value={createForm.customUsername} onChangeText={v => setCreateForm(f => ({...f, customUsername: v}))} />
               </View>
 
               <View style={styles.modalField}>
-                <Text style={styles.fieldLabel}>Login Password *</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.fieldLabel}>Login Password *</Text>
                 <PasswordInput style={styles.fieldInput} placeholder="Temporary password" placeholderTextColor={colors.textMuted} value={createForm.password} onChangeText={v => setCreateForm(f => ({...f, password: v}))} />
               </View>
 
@@ -487,17 +487,17 @@ export default function MentorInternsScreen({navigation}) {
               </View>
 
               <View style={styles.modalField}>
-                <Text style={styles.fieldLabel}>CNIC *</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.fieldLabel}>CNIC *</Text>
                 <TextInput style={styles.fieldInput} placeholder="e.g. 42101-1234567-1" placeholderTextColor={colors.textMuted} keyboardType="numeric" value={createForm.cnic} onChangeText={v => setCreateForm(f => ({...f, cnic: v}))} />
               </View>
 
               <View style={styles.modalField}>
-                <Text style={styles.fieldLabel}>University / Institute</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.fieldLabel}>University / Institute</Text>
                 <TextInput style={styles.fieldInput} placeholder="e.g. NED University" placeholderTextColor={colors.textMuted} value={createForm.university} onChangeText={v => setCreateForm(f => ({...f, university: v}))} />
               </View>
 
               <View style={styles.modalField}>
-                <Text style={styles.fieldLabel}>Degree / Program</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.fieldLabel}>Degree / Program</Text>
                 <TextInput style={styles.fieldInput} placeholder="e.g. BS Computer Science" placeholderTextColor={colors.textMuted} value={createForm.degree} onChangeText={v => setCreateForm(f => ({...f, degree: v}))} />
               </View>
 
@@ -508,16 +508,16 @@ export default function MentorInternsScreen({navigation}) {
 
               <View style={styles.durationCard}>
                 <Icon name="clock" size={14} color={colors.textAccent} />
-                <Text style={styles.durationText}>Duration: {Math.ceil((createEnd.getTime() - createStart.getTime()) / (1000*60*60*24))} Days (~{(Math.ceil((createEnd.getTime() - createStart.getTime()) / (1000*60*60*24))/30).toFixed(1)} Months)</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.durationText}>Duration: {Math.ceil((createEnd.getTime() - createStart.getTime()) / (1000*60*60*24))} Days (~{(Math.ceil((createEnd.getTime() - createStart.getTime()) / (1000*60*60*24))/30).toFixed(1)} Months)</Text>
               </View>
 
               <TouchableOpacity id="capture-office-location" style={[styles.locBtn, createOffice && styles.locBtnDone]} onPress={captureCreateLocation} disabled={capturingLoc}>
                 {capturingLoc ? <ActivityIndicator size="small" color={colors.textAccent} /> : <Icon name={createOffice ? 'check' : 'mapPin'} size={16} color={createOffice ? colors.success : colors.textAccent} />}
                 <View style={{flex:1}}>
-                  <Text style={[styles.locBtnText, createOffice && {color: colors.success}]}>
+                  <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.locBtnText, createOffice && {color: colors.success}]}>
                     {createOffice ? `Office location: ${createOffice.lat.toFixed(5)}, ${createOffice.lng.toFixed(5)}` : 'Locate Office (GPS)'}
                   </Text>
-                  <Text style={[styles.locBtnSub, createOffice && {color: colors.success}]}>
+                  <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.locBtnSub, createOffice && {color: colors.success}]}>
                     {createOffice ? 'Geofence will use this point for attendance' : 'Capture live GPS — falls back to department coordinates if skipped'}
                   </Text>
                 </View>
@@ -525,10 +525,10 @@ export default function MentorInternsScreen({navigation}) {
 
               <View style={styles.modalActions}>
                 <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowCreate(false)}>
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                  <Text numberOfLines={1} ellipsizeMode="tail" style={styles.cancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.createBtn} onPress={submitCreate} disabled={creating}>
-                  {creating ? <ActivityIndicator color="#fff" /> : <Text style={styles.createBtnText}>Create & Save</Text>}
+                  {creating ? <ActivityIndicator color="#fff" /> : <Text numberOfLines={1} ellipsizeMode="tail" style={styles.createBtnText}>Create & Save</Text>}
                 </TouchableOpacity>
               </View>
             </ScrollView>

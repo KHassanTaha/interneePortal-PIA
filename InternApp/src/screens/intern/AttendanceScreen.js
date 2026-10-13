@@ -718,7 +718,7 @@ export default function AttendanceScreen({navigation, route}) {
         />
 
         <View style={styles.pageHeader}>
-          <Text style={styles.pageSubtitle}>Mark attendance, review history and apply for leave</Text>
+          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.pageSubtitle}>Mark attendance, review history and apply for leave</Text>
         </View>
 
         <View style={styles.subtabRow}>
@@ -728,7 +728,7 @@ export default function AttendanceScreen({navigation, route}) {
               id={`atta-subtab-${key}`}
               style={[styles.subtabBtn, subtab === key && styles.subtabBtnActive]}
               onPress={() => setSubtab(key)}>
-              <Text style={[styles.subtabText, subtab === key && styles.subtabTextActive]}>{label}</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.subtabText, subtab === key && styles.subtabTextActive]}>{label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -741,12 +741,12 @@ export default function AttendanceScreen({navigation, route}) {
             <Icon name="user" size={22} color={faceStatus === 'Approved' ? colors.success : faceStatus === 'Rejected' ? colors.error : colors.warning} />
           </View>
           <View style={styles.faceInfo}>
-            <Text style={styles.faceLabel}>Face Profile</Text>
-            <Text style={[styles.faceStatus, {color: faceStatus === 'Approved' ? colors.success : faceStatus === 'Rejected' ? colors.error : colors.warning}]}>
+            <Text numberOfLines={1} ellipsizeMode="tail" style={styles.faceLabel}>Face Profile</Text>
+            <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.faceStatus, {color: faceStatus === 'Approved' ? colors.success : faceStatus === 'Rejected' ? colors.error : colors.warning}]}>
               {faceStatus === 'Approved' ? 'Registered' : faceStatus === 'Pending' ? 'Under review' : faceStatus === 'Rejected' ? 'Rejected' : 'Not set'}
             </Text>
             {faceStatus === 'Rejected' && profile?.faceRejectedReason && (
-              <Text style={styles.faceRejectText}>Reason: {profile.faceRejectedReason}</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.faceRejectText}>Reason: {profile.faceRejectedReason}</Text>
             )}
           </View>
           {faceStatus === 'Approved' ? (
@@ -755,7 +755,7 @@ export default function AttendanceScreen({navigation, route}) {
               style={[styles.faceAction, {backgroundColor: colors.success}]}
               onPress={() => navigation.navigate('FaceEnroll')}>
               <Icon name="pencil" size={15} color="#fff" />
-              <Text style={styles.faceActionText}>Edit</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.faceActionText}>Edit</Text>
             </TouchableOpacity>
           ) : faceStatus === 'Rejected' ? (
             <TouchableOpacity
@@ -763,7 +763,7 @@ export default function AttendanceScreen({navigation, route}) {
               style={[styles.faceAction, {backgroundColor: colors.primary}]}
               onPress={() => navigation.navigate('FaceEnroll')}>
               <Icon name="camera" size={15} color="#fff" />
-              <Text style={styles.faceActionText}>Retry</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.faceActionText}>Retry</Text>
             </TouchableOpacity>
           ) : faceStatus === 'NotEnrolled' ? (
             <TouchableOpacity
@@ -771,12 +771,12 @@ export default function AttendanceScreen({navigation, route}) {
               style={[styles.faceAction, {backgroundColor: colors.primary}]}
               onPress={() => navigation.navigate('FaceEnroll')}>
               <Icon name="camera" size={15} color="#fff" />
-              <Text style={styles.faceActionText}>Register</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.faceActionText}>Register</Text>
             </TouchableOpacity>
           ) : (
             <View style={[styles.faceAction, {backgroundColor: colors.warning + '22', borderWidth: 1, borderColor: colors.warning}]}>
               <Icon name="clock" size={15} color={colors.warning} />
-              <Text style={[styles.faceActionText, {color: colors.warning}]}>Review</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.faceActionText, {color: colors.warning}]}>Review</Text>
             </View>
           )}
         </View>
@@ -788,24 +788,24 @@ export default function AttendanceScreen({navigation, route}) {
               <Animated.View style={[styles.gpsCircle, {opacity: fadeAnim}]}>
                 <Icon name="mapPin" size={40} color={colors.textAccent} />
               </Animated.View>
-              <Text style={styles.stepTitle}>Ready to Mark Attendance</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.stepTitle}>Ready to Mark Attendance</Text>
               {geofenceUnavailable ? (
-                <Text style={[styles.stepDesc, {color: colors.error, textAlign: 'center'}]}>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.stepDesc, {color: colors.error, textAlign: 'center'}]}>
                   {MISSING_GEOFENCE_CONFIG_MESSAGE}
                 </Text>
               ) : !isOnline ? (
-                <Text style={[styles.stepDesc, {color: colors.warning, textAlign: 'center'}]}>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.stepDesc, {color: colors.warning, textAlign: 'center'}]}>
                   Requires an internet connection. Reconnect to mark your attendance.
                 </Text>
               ) : (
-              <Text style={styles.stepDesc}>
-                Department: <Text style={{fontWeight: '700', color: colors.textAccent}}>{profile?.department || deptInfo?.departmentName || 'ERP / Cyber'}</Text> (Max 100m radius)
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.stepDesc}>
+                Department: <Text numberOfLines={1} ellipsizeMode="tail" style={{fontWeight: '700', color: colors.textAccent}}>{profile?.department || deptInfo?.departmentName || 'ERP / Cyber'}</Text> (Max 100m radius)
               </Text>
               )}
               <View style={styles.testModeRow}>
                 <View style={{flex: 1}}>
-                  <Text style={styles.testModeLabel}>Simulate Office Location</Text>
-                  <Text style={styles.testModeHint}>Reports office location so attendance works from anywhere</Text>
+                  <Text numberOfLines={1} ellipsizeMode="tail" style={styles.testModeLabel}>Simulate Office Location</Text>
+                  <Text numberOfLines={1} ellipsizeMode="tail" style={styles.testModeHint}>Reports office location so attendance works from anywhere</Text>
                 </View>
                 <Switch
                   value={debug.simulateLocation}
@@ -820,15 +820,15 @@ export default function AttendanceScreen({navigation, route}) {
                 disabled={loading || !isOnline || geofenceUnavailable}
                 loading={loading}
                 icon={<Icon name="mapPin" size={18} color="#fff" />}>
-                <Text style={styles.primaryBtnText}>Mark Attendance Now</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.primaryBtnText}>Mark Attendance Now</Text>
               </GradientButton>
             </View>
           )}
 
           {statusState === 'FACE_CHECKING' && (
             <View style={styles.flowBox}>
-              <Text style={styles.stepTitle}>Step 1: Face Verification</Text>
-              <Text style={styles.stepDesc}>Verifying identity against registered face profile</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.stepTitle}>Step 1: Face Verification</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.stepDesc}>Verifying identity against registered face profile</Text>
 
               <View style={styles.cameraFrame}>
                 {permGranted && device && photoOutput ? (
@@ -848,7 +848,7 @@ export default function AttendanceScreen({navigation, route}) {
                 )}
 
                 <View style={styles.challengeOverlay}>
-                  <Text style={styles.challengeText}>
+                  <Text numberOfLines={1} ellipsizeMode="tail" style={styles.challengeText}>
                     {scanningFace
                       ? `Challenge ${currentChallenge + 1}: ${serverChallenges[currentChallenge]?.label ?? 'Follow the prompt'}`
                       : 'Position face inside frame'}
@@ -870,25 +870,25 @@ export default function AttendanceScreen({navigation, route}) {
                 disabled={scanningFace}
                 loading={scanningFace}
                 icon={<Icon name="camera" size={18} color="#fff" />}>
-                <Text style={styles.primaryBtnText}>Verify Face & Proceed</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.primaryBtnText}>Verify Face & Proceed</Text>
               </GradientButton>
             </View>
           )}
 
           {(statusState === 'FACE_VERIFIED' || statusState === 'LOCATION_CHECKING' || statusState === 'LOCATION_VERIFIED' || statusState === 'FINALIZING') && (
             <View style={styles.flowBox}>
-              <Text style={styles.stepTitle}>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.stepTitle}>
                 {statusState === 'LOCATION_VERIFIED' || statusState === 'FINALIZING'
                   ? 'Step 3: Finalizing Attendance'
                   : 'Step 2: Department Geofence Check'}
               </Text>
-              <Text style={styles.stepDesc}>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.stepDesc}>
                 {statusState === 'LOCATION_VERIFIED' || statusState === 'FINALIZING'
                   ? 'Recording PRESENT status in database...'
                   : 'Verifying physical coordinates against department 100m radius...'}
               </Text>
               <ActivityIndicator size="large" color={statusState === 'FINALIZING' ? colors.success : colors.primary} style={{marginVertical: 24}} />
-              <Text style={styles.infoText}>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.infoText}>
                 {statusState === 'LOCATION_VERIFIED' || statusState === 'FINALIZING'
                   ? 'Writing attendance record...'
                   : 'Fetching GPS location...'}
@@ -901,28 +901,28 @@ export default function AttendanceScreen({navigation, route}) {
               <View style={[styles.resultIconBox, {backgroundColor: colors.success + '22'}]}>
                 <Icon name="check" size={36} color={colors.success} />
               </View>
-              <Text style={[styles.resultTitle, {color: colors.success}]}>{checkoutMode ? 'CHECKED OUT' : 'PRESENT'}</Text>
-              <Text style={styles.resultMsg}>{checkoutMode ? 'Checked out successfully!' : 'Attendance marked successfully!'}</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.resultTitle, {color: colors.success}]}>{checkoutMode ? 'CHECKED OUT' : 'PRESENT'}</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.resultMsg}>{checkoutMode ? 'Checked out successfully!' : 'Attendance marked successfully!'}</Text>
               <View style={styles.badgeCard}>
                 <View style={styles.badgeRow}>
                   <Icon name="building" size={15} color={colors.textMuted} />
-                  <Text style={styles.badgeText}>Department: {resultData?.departmentName || profile?.department}</Text>
+                  <Text numberOfLines={1} ellipsizeMode="tail" style={styles.badgeText}>Department: {resultData?.departmentName || profile?.department}</Text>
                 </View>
                 <View style={styles.badgeRow}>
                   <Icon name="mapPin" size={15} color={colors.textMuted} />
-                  <Text style={styles.badgeText}>Geofence Distance: {resultData?.distanceMeters ?? 0}m (Max 100m)</Text>
+                  <Text numberOfLines={1} ellipsizeMode="tail" style={styles.badgeText}>Geofence Distance: {resultData?.distanceMeters ?? 0}m (Max 100m)</Text>
                 </View>
                 <View style={styles.badgeRow}>
                   <Icon name="user" size={15} color={colors.textMuted} />
-                  <Text style={styles.badgeText}>ArcFace 1:1 Identity Verification: Passed</Text>
+                  <Text numberOfLines={1} ellipsizeMode="tail" style={styles.badgeText}>ArcFace 1:1 Identity Verification: Passed</Text>
                 </View>
                 <View style={styles.badgeRow}>
                   <Icon name="clock" size={15} color={colors.textMuted} />
-                  <Text style={styles.badgeText}>Official Timestamp: {new Date().toLocaleTimeString()}</Text>
+                  <Text numberOfLines={1} ellipsizeMode="tail" style={styles.badgeText}>Official Timestamp: {new Date().toLocaleTimeString()}</Text>
                 </View>
               </View>
               <GradientButton id="attendance-done-btn" style={{width: '100%'}} onPress={goBackToOverview}>
-                <Text style={styles.primaryBtnText}>Done</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.primaryBtnText}>Done</Text>
               </GradientButton>
             </View>
           )}
@@ -932,14 +932,14 @@ export default function AttendanceScreen({navigation, route}) {
               <View style={[styles.resultIconBox, {backgroundColor: colors.error + '22'}]}>
                 <Icon name="close" size={36} color={colors.error} />
               </View>
-              <Text style={[styles.resultTitle, {color: colors.error}]}>Attendance Rejected</Text>
-              <Text style={styles.resultMsg}>{errorMessage}</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.resultTitle, {color: colors.error}]}>Attendance Rejected</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.resultMsg}>{errorMessage}</Text>
               <GradientButton
                 id="retry-attendance-btn"
                 style={{width: '100%'}}
                 onPress={startAttendanceSession}
                 icon={<Icon name="refresh" size={18} color="#fff" />}>
-                <Text style={styles.primaryBtnText}>Try Again</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.primaryBtnText}>Try Again</Text>
               </GradientButton>
             </View>
           )}
@@ -949,19 +949,19 @@ export default function AttendanceScreen({navigation, route}) {
               <View style={[styles.resultIconBox, {backgroundColor: colors.error + '22'}]}>
                 <Icon name="close" size={36} color={colors.error} />
               </View>
-              <Text style={[styles.resultTitle, {color: colors.error}]}>ABSENT</Text>
-              <Text style={styles.resultMsg}>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.resultTitle, {color: colors.error}]}>ABSENT</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.resultMsg}>
                 {errorMessage || 'Attendance window closed after 1:00 PM. Automatically marked ABSENT for today.'}
               </Text>
               <View style={[styles.badgeCard, {borderColor: colors.error}]}>
                 <View style={styles.badgeRow}>
                   <Icon name="clock" size={15} color={colors.error} />
-                  <Text style={[styles.badgeText, {color: colors.error}]}>Cut-off Time: 1:00 PM PKT</Text>
+                  <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.badgeText, {color: colors.error}]}>Cut-off Time: 1:00 PM PKT</Text>
                 </View>
-                <Text style={styles.badgeText}>Attendance must be marked before 1:00 PM every working day.</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.badgeText}>Attendance must be marked before 1:00 PM every working day.</Text>
               </View>
               <GradientButton id="attendance-done-btn" style={{width: '100%'}} onPress={goBackToOverview}>
-                <Text style={styles.primaryBtnText}>Done</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.primaryBtnText}>Done</Text>
               </GradientButton>
             </View>
           )}
@@ -971,27 +971,27 @@ export default function AttendanceScreen({navigation, route}) {
               <View style={[styles.resultIconBox, {backgroundColor: colors.success + '22'}]}>
                 <Icon name="check" size={36} color={colors.success} />
               </View>
-              <Text style={[styles.resultTitle, {color: colors.success}]}>ATTENDANCE RECORDED</Text>
-              <Text style={styles.resultMsg}>You have already marked attendance for today.</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.resultTitle, {color: colors.success}]}>ATTENDANCE RECORDED</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.resultMsg}>You have already marked attendance for today.</Text>
               <View style={styles.badgeCard}>
                 <View style={styles.badgeRow}>
                   <Icon name="calendar" size={15} color={colors.textMuted} />
-                  <Text style={styles.badgeText}>Status: {resultData?.status || 'Present'}</Text>
+                  <Text numberOfLines={1} ellipsizeMode="tail" style={styles.badgeText}>Status: {resultData?.status || 'Present'}</Text>
                 </View>
                 <View style={styles.badgeRow}>
                   <Icon name="clock" size={15} color={colors.textMuted} />
-                  <Text style={styles.badgeText}>Time: {new Date(resultData?.timestamp || Date.now()).toLocaleTimeString()}</Text>
+                  <Text numberOfLines={1} ellipsizeMode="tail" style={styles.badgeText}>Time: {new Date(resultData?.timestamp || Date.now()).toLocaleTimeString()}</Text>
                 </View>
                 {resultData?.departureTime && (
                   <View style={styles.badgeRow}>
                     <Icon name="clock" size={15} color={colors.textMuted} />
-                    <Text style={styles.badgeText}>Checkout: {new Date(resultData.departureTime).toLocaleTimeString()}</Text>
+                    <Text numberOfLines={1} ellipsizeMode="tail" style={styles.badgeText}>Checkout: {new Date(resultData.departureTime).toLocaleTimeString()}</Text>
                   </View>
                 )}
               </View>
               {!resultData?.departureTime && (
                 <TouchableOpacity style={[styles.checkoutBtn, (checkingOut || !isOnline) && {opacity:0.6}]} onPress={startCheckoutSession} disabled={checkingOut || !isOnline}>
-                  {checkingOut ? <ActivityIndicator color="#fff" size="small" /> : <><Icon name="logout" size={16} color="#fff" /><Text style={styles.checkoutBtnText}>{!isOnline ? 'Requires internet' : 'Check Out'}</Text></>}
+                  {checkingOut ? <ActivityIndicator color="#fff" size="small" /> : <><Icon name="logout" size={16} color="#fff" /><Text numberOfLines={1} ellipsizeMode="tail" style={styles.checkoutBtnText}>{!isOnline ? 'Requires internet' : 'Check Out'}</Text></>}
                 </TouchableOpacity>
               )}
             </View>
@@ -1002,14 +1002,14 @@ export default function AttendanceScreen({navigation, route}) {
               <View style={[styles.resultIconBox, {backgroundColor: colors.warning + '22'}]}>
                 <Icon name="alert" size={36} color={colors.warning} />
               </View>
-              <Text style={[styles.resultTitle, {color: colors.warning}]}>Face Setup Required</Text>
-              <Text style={styles.resultMsg}>You must register your face profile before marking attendance.</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.resultTitle, {color: colors.warning}]}>Face Setup Required</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.resultMsg}>You must register your face profile before marking attendance.</Text>
               <GradientButton
                 id="nav-face-reg-btn"
                 style={{width: '100%'}}
                 onPress={() => navigation.navigate('FaceEnroll')}
                 icon={<Icon name="camera" size={18} color="#fff" />}>
-                <Text style={styles.primaryBtnText}>Register Face Profile Now</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.primaryBtnText}>Register Face Profile Now</Text>
               </GradientButton>
             </View>
           )}
@@ -1024,7 +1024,7 @@ export default function AttendanceScreen({navigation, route}) {
               onPress={() => changeMonth(-1)}>
               <Icon name="back" size={18} color={colors.textAccent} />
             </TouchableOpacity>
-            <Text style={styles.monthLabel}>{MONTHS[historyMonth.month - 1]} {historyMonth.year}</Text>
+            <Text numberOfLines={1} ellipsizeMode="tail" style={styles.monthLabel}>{MONTHS[historyMonth.month - 1]} {historyMonth.year}</Text>
             <TouchableOpacity
               id="history-next"
               style={[styles.monthBtn, isCurrentMonth() && styles.monthBtnDisabled]}
@@ -1041,31 +1041,31 @@ export default function AttendanceScreen({navigation, route}) {
           ) : records.length === 0 ? (
             <View style={styles.historyEmpty}>
               <Icon name="calendar" size={28} color={colors.textMuted} />
-              <Text style={styles.historyEmptyText}>No attendance records this month.</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.historyEmptyText}>No attendance records this month.</Text>
             </View>
           ) : (
             <>
             <View style={styles.table}>
               <View style={styles.tableHead}>
-                <Text style={[styles.tableHeadCell, styles.colDate]}>Date</Text>
-                <Text style={[styles.tableHeadCell, styles.colTime]}>In</Text>
-                <Text style={[styles.tableHeadCell, styles.colTime]}>Out</Text>
-                <Text style={[styles.tableHeadCell, styles.colStatus]}>Status</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.tableHeadCell, styles.colDate]}>Date</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.tableHeadCell, styles.colTime]}>In</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.tableHeadCell, styles.colTime]}>Out</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.tableHeadCell, styles.colStatus]}>Status</Text>
               </View>
               {records.map(r => {
                 const badge = statusBadge(r.status);
                 const outTime = r.departureTime || r.outTime;
                 return (
                   <View key={r.id} style={styles.tableRow}>
-                    <Text style={[styles.tableCell, styles.colDate]}>{new Date(r.timestamp).toLocaleDateString()}</Text>
-                    <Text style={[styles.tableCell, styles.colTime]}>
+                    <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.tableCell, styles.colDate]}>{new Date(r.timestamp).toLocaleDateString()}</Text>
+                    <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.tableCell, styles.colTime]}>
                       {r.checkInPhotoPath ? (
                         <TouchableOpacity id={`att-in-${r.id}`} onPress={() => setViewerUri(fileUrl(r.checkInPhotoPath))}>
                           <Image source={{uri: fileUrl(r.checkInPhotoPath)}} style={styles.tableThumb} />
                         </TouchableOpacity>
                       ) : new Date(r.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
                     </Text>
-                    <Text style={[styles.tableCell, styles.colTime]}>
+                    <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.tableCell, styles.colTime]}>
                       {outTime ? (
                         r.checkOutPhotoPath ? (
                           <TouchableOpacity id={`att-out-${r.id}`} onPress={() => setViewerUri(fileUrl(r.checkOutPhotoPath))}>
@@ -1077,7 +1077,7 @@ export default function AttendanceScreen({navigation, route}) {
                     <View style={[styles.tableCell, styles.colStatus]}>
                       <View style={[styles.rowBadge, {backgroundColor: badge.color + '22'}]}>
                         <Icon name={badge.icon} size={11} color={badge.color} />
-                        <Text style={[styles.rowBadgeText, {color: badge.color}]}>{r.status}</Text>
+                        <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.rowBadgeText, {color: badge.color}]}>{r.status}</Text>
                       </View>
                     </View>
                   </View>
@@ -1095,30 +1095,30 @@ export default function AttendanceScreen({navigation, route}) {
         <>
         {/* ─── Apply for Leave (#14) ────────────────────────────────────── */}
         <View style={styles.leaveCardSection}>
-          <Text style={styles.leaveSectionTitle}>Apply for Leave</Text>
-          <Text style={styles.leaveHint}>Submit a leave request to your mentor for approval</Text>
+          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.leaveSectionTitle}>Apply for Leave</Text>
+          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.leaveHint}>Submit a leave request to your mentor for approval</Text>
 
-          <Text style={styles.formLabel}>Start Date (YYYY-MM-DD)</Text>
+          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.formLabel}>Start Date (YYYY-MM-DD)</Text>
           <TextInput style={styles.input} value={leaveStartDate} onChangeText={setLeaveStartDate} placeholder="2026-09-01" placeholderTextColor={colors.textMuted} />
 
-          <Text style={styles.formLabel}>End Date (YYYY-MM-DD)</Text>
+          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.formLabel}>End Date (YYYY-MM-DD)</Text>
           <TextInput style={styles.input} value={leaveEndDate} onChangeText={setLeaveEndDate} placeholder="2026-09-03" placeholderTextColor={colors.textMuted} />
 
-          <Text style={styles.formLabel}>Reason</Text>
+          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.formLabel}>Reason</Text>
           <TextInput style={[styles.input, styles.inputMultiline]} value={leaveReason} onChangeText={setLeaveReason} placeholder="Why do you need leave?" placeholderTextColor={colors.textMuted} multiline numberOfLines={3} />
 
           <TouchableOpacity id="apply-leave-btn" style={[styles.submitBtn, submittingLeave && {opacity: 0.6}]} onPress={submitLeave} disabled={submittingLeave}>
-            {submittingLeave ? <ActivityIndicator size="small" color="#fff" /> : <><Icon name="calendar" size={18} color="#fff" /><Text style={styles.submitBtnText}>Submit Request</Text></>}
+            {submittingLeave ? <ActivityIndicator size="small" color="#fff" /> : <><Icon name="calendar" size={18} color="#fff" /><Text numberOfLines={1} ellipsizeMode="tail" style={styles.submitBtnText}>Submit Request</Text></>}
           </TouchableOpacity>
         </View>
 
         {/* ─── My Leave Requests (#14) ───────────────────────────────────── */}
         <View style={styles.historyCard}>
-          <Text style={styles.leaveSectionTitle}>My Leave Requests</Text>
+          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.leaveSectionTitle}>My Leave Requests</Text>
           {leaves.length === 0 && (
             <View style={styles.historyEmpty}>
               <Icon name="calendar" size={28} color={colors.textMuted} />
-              <Text style={styles.historyEmptyText}>No leave requests yet</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.historyEmptyText}>No leave requests yet</Text>
             </View>
           )}
           {leaves.map(l => {
@@ -1126,12 +1126,12 @@ export default function AttendanceScreen({navigation, route}) {
             return (
               <View key={l.id} style={styles.leaveCard}>
                 <View style={styles.leaveRow}>
-                  <Text style={styles.leaveDates}>{new Date(l.startDate).toLocaleDateString()} – {new Date(l.endDate).toLocaleDateString()}</Text>
-                  <Text style={[styles.leaveBadge, {color: badgeColor}]}>{l.status}</Text>
+                  <Text numberOfLines={1} ellipsizeMode="tail" style={styles.leaveDates}>{new Date(l.startDate).toLocaleDateString()} – {new Date(l.endDate).toLocaleDateString()}</Text>
+                  <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.leaveBadge, {color: badgeColor}]}>{l.status}</Text>
                 </View>
-                <Text style={styles.leaveReason}>{l.reason}</Text>
-                {l.rejectionReason && <Text style={styles.leaveRejectReason}>Rejection reason: {l.rejectionReason}</Text>}
-                <Text style={styles.leaveDate}>Applied {new Date(l.createdAt).toLocaleDateString()}</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.leaveReason}>{l.reason}</Text>
+                {l.rejectionReason && <Text numberOfLines={1} ellipsizeMode="tail" style={styles.leaveRejectReason}>Rejection reason: {l.rejectionReason}</Text>}
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.leaveDate}>Applied {new Date(l.createdAt).toLocaleDateString()}</Text>
               </View>
             );
           })}
