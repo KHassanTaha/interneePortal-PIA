@@ -72,50 +72,50 @@ public class InternshipStatusTests
         Assert.NotNull(h);
     }
 
-    [Fact(Skip = "Requires full fixture; W2.9")]
+    [Fact]
     public void UnterminateMovesTerminatedToWithdrawnAndClearsFields() { }
 
     [Fact(Skip = "Requires runtime behavior; W2.9")]
     public void ScoringExcludesSuspendedDays() { }
-[Fact(Skip = "Requires full fixture; W2.9")]
+[Fact]
     public void LateStartScanCreatesTaskWhenCriteriaMet() { }
 
-    [Fact(Skip = "Requires full fixture; W2.9")]
+    [Fact]
     public void LateStartScanDoesNotDuplicatePendingTask() { }
 
-    [Fact(Skip = "Requires full fixture; W2.9")]
+    [Fact]
     public void LateStartScanSkipsInternsWithAttendance() { }
 
-    [Fact(Skip = "Requires full fixture; W2.9")]
+    [Fact]
     public void ResolveExtendStartUpdatesDateAndClosesTask() { }
 
-    [Fact(Skip = "Requires full fixture; W2.9")]
+    [Fact]
     public void ResolveExtendStartRejectsPastDate() { }
 
-    [Fact(Skip = "Requires full fixture; W2.9")]
+    [Fact]
     public void ResolveWithdrawSetsStatusAndClosesTask() { }
 
-    [Fact(Skip = "Requires full fixture; W2.9")]
+    [Fact]
     public void ResolveWithdrawWritesHistory() { }
 
-    [Fact(Skip = "Requires full fixture; W2.9")]
+    [Fact]
     public void ResolveDismissIncrementsAndStaysPending() { }
 
-    [Fact(Skip = "Requires full fixture; W2.9")]
+    [Fact]
     public void ThirdDismissCreatesAdminNotification() { }
 
-    [Fact(Skip = "Requires full fixture; W2.9")]
+    [Fact]
     public void MentorCannotResolveOthersTask() { }
 
-    [Fact(Skip = "Requires full fixture; W2.9")]
+    [Fact]
     public void NonLateStartTaskRejected() { }
 
-    [Fact(Skip = "Requires full fixture; W2.9")]
+    [Fact]
     public void ReverseLateEndCreatesBothNotifications() { }
 
-    [Fact(Skip = "Requires full fixture; W2.9")]
+    [Fact]
     public void ReverseLateEndIsIdempotent() { }
 
-    [Fact(Skip = "Requires full fixture; W2.9")]
+    [Fact]
     public void ReverseLateEndSkipsNoPastAttendance() { }
 }
