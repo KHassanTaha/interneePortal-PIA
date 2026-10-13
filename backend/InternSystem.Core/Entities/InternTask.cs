@@ -22,4 +22,8 @@ public class InternTask
     public TaskStatus Status { get; set; } = TaskStatus.Pending;
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime? CompletedAt { get; set; }
+    public string TaskType { get; set; } = "General";
+    public int DismissCount { get; set; } = 0;
+    public string? Metadata { get; set; }
 }
+

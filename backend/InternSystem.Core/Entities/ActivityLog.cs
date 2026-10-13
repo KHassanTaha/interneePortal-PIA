@@ -64,6 +64,8 @@ public enum ActivityLogType
     AttendanceFailureCleared,
     AttendanceFailureAutoPurged,
     AttendanceFailureImageRetrieved,
+    InternStatusAutoActivated,
+    InternStatusChanged,
 }
 
 public class ActivityLog

@@ -170,6 +170,7 @@ builder.Services.AddScoped<IdempotencyService>();
 // ─── App ────────────────────────────────────────────────────────────────────
 builder.Services.AddHostedService<InternSystem.API.Services.AttendanceFailureAutoPurgeService>();
 builder.Services.AddHostedService<InternSystem.API.Services.AttendanceFailureRetentionReminderService>();
+builder.Services.AddHostedService<InternSystem.API.Services.InternStatusAutoActivateService>();
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
@@ -358,7 +359,22 @@ using (var scope = app.Services.CreateScope())
 
         IF OBJECT_ID('Interns') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_Interns_Cnic' AND object_id = OBJECT_ID('Interns'))
         CREATE UNIQUE INDEX UX_Interns_Cnic ON Interns(Cnic) WHERE Cnic IS NOT NULL AND Cnic <> '';
-    ");
+        IF OBJECT_ID('Interns') IS NOT NULL
+        BEGIN
+            IF COL_LENGTH('Interns','Status') IS NULL ALTER TABLE Interns ADD Status INT NOT NULL DEFAULT 0;
+            IF COL_LENGTH('Interns','StatusUpdatedAt') IS NULL ALTER TABLE Interns ADD StatusUpdatedAt DATETIME2 NULL;
+            IF COL_LENGTH('Interns','StatusUpdatedByUserId') IS NULL ALTER TABLE Interns ADD StatusUpdatedByUserId BIGINT NULL;
+            IF COL_LENGTH('Interns','TerminationReason') IS NULL ALTER TABLE Interns ADD TerminationReason NVARCHAR(1000) NULL;
+            IF COL_LENGTH('Interns','TerminatedAt') IS NULL ALTER TABLE Interns ADD TerminatedAt DATETIME2 NULL;
+            UPDATE Interns SET Status = 1 WHERE Status = 0 AND StartDate <= CAST(GETUTCDATE() AS DATE);
+        END
+            IF OBJECT_ID('Tasks') IS NOT NULL
+        BEGIN
+            IF COL_LENGTH('Tasks','TaskType') IS NULL ALTER TABLE Tasks ADD TaskType NVARCHAR(50) NULL;
+            IF COL_LENGTH('Tasks','DismissCount') IS NULL ALTER TABLE Tasks ADD DismissCount INT NOT NULL DEFAULT 0;
+            IF COL_LENGTH('Tasks','Metadata') IS NULL ALTER TABLE Tasks ADD Metadata NVARCHAR(1000) NULL;
+        END
+);
 }
 
 app.Run();

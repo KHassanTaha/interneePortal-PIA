@@ -92,12 +92,31 @@ public class AttendanceScoringService
 
         var rowsByDate = rows.ToDictionary(r => r.Timestamp.Date);
 
+        // Get suspended days for intern if history exists
+        var suspHist = await _db.InternStatusHistories
+            .Where(h => h.InternId == internId && h.Status == InternshipStatus.Suspended)
+            .ToListAsync();
+        var isSuspendedOnDay = new System.Func<DateTime, bool>(day =>
+        {
+            foreach (var h in suspHist)
+            {
+                var from = h.FromDate.Date;
+                var to = h.ToDate?.Date ?? DateTime.MaxValue.Date;
+                if (day.Date >= from && day.Date <= to) return true;
+            }
+            return false;
+        });
+
         double totalScore = 0;
         int totalDays = 0;
         int leaveUsed = 0;
 
         for (var day = start; day <= end; day = day.AddDays(1))
         {
+            if (isSuspendedOnDay(day))
+            {
+                continue;
+            }
             totalDays++;
             if (day.DayOfWeek == DayOfWeek.Saturday || day.DayOfWeek == DayOfWeek.Sunday ||
                 holidays.Contains(DateOnly.FromDateTime(day)))

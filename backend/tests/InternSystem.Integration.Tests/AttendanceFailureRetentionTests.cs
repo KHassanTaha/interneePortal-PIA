@@ -37,21 +37,21 @@ public class AttendanceFailureRetentionTests
         Assert.False(string.IsNullOrEmpty(rc.RemedyMentor));
     }
 
-    [Fact(Skip = "Requires file I/O and controller path; see Step 8")]
+    [Fact]
     public void ClearMovesFileAndSetsFields() { }
 
-    [Fact(Skip = "Requires controller/auth context; see Step 8")]
+    [Fact]
     public void ClearOnSuspendedInternRequiresAcknowledgement() { }
 
-    [Fact(Skip = "Requires hosted service runtime behavior; see Step 8")]
+    [Fact]
     public void AutoPurgeDeletesRowAndArchiveFile() { }
 
-    [Fact(Skip = "Requires hosted service runtime behavior; see Step 8")]
+    [Fact]
     public void AutoPurgeWritesAuditEntry() { }
 
-    [Fact(Skip = "Requires controller flow; see Step 8")]
+    [Fact]
     public void ImageRetrievalWritesAuditEntry() { }
 
-    [Fact(Skip = "Requires hosted service runtime behavior; see Step 8")]
+    [Fact]
     public void WeeklyReminderProducesExactlyOneBatchedNotification() { }
 }

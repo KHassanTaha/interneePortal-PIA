@@ -35,6 +35,7 @@ public class AppDbContext : DbContext
 
     public DbSet<ReasonCode> ReasonCodes { get; set; }
     public DbSet<AttendanceFailureRecord> AttendanceFailureRecords { get; set; }
+    public DbSet<InternStatusHistory> InternStatusHistories { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
