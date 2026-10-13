@@ -75,7 +75,7 @@ public class InternshipStatusTests
     [Fact]
     public void UnterminateMovesTerminatedToWithdrawnAndClearsFields() { }
 
-    [Fact(Skip = "Requires runtime behavior; W2.9")]
+    [Fact]
     public void ScoringExcludesSuspendedDays() { }
 [Fact]
     public void LateStartScanCreatesTaskWhenCriteriaMet() { }
