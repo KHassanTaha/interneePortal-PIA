@@ -77,4 +77,45 @@ public class InternshipStatusTests
 
     [Fact(Skip = "Requires runtime behavior; W2.9")]
     public void ScoringExcludesSuspendedDays() { }
+[Fact(Skip = "Requires full fixture; W2.9")]
+    public void LateStartScanCreatesTaskWhenCriteriaMet() { }
+
+    [Fact(Skip = "Requires full fixture; W2.9")]
+    public void LateStartScanDoesNotDuplicatePendingTask() { }
+
+    [Fact(Skip = "Requires full fixture; W2.9")]
+    public void LateStartScanSkipsInternsWithAttendance() { }
+
+    [Fact(Skip = "Requires full fixture; W2.9")]
+    public void ResolveExtendStartUpdatesDateAndClosesTask() { }
+
+    [Fact(Skip = "Requires full fixture; W2.9")]
+    public void ResolveExtendStartRejectsPastDate() { }
+
+    [Fact(Skip = "Requires full fixture; W2.9")]
+    public void ResolveWithdrawSetsStatusAndClosesTask() { }
+
+    [Fact(Skip = "Requires full fixture; W2.9")]
+    public void ResolveWithdrawWritesHistory() { }
+
+    [Fact(Skip = "Requires full fixture; W2.9")]
+    public void ResolveDismissIncrementsAndStaysPending() { }
+
+    [Fact(Skip = "Requires full fixture; W2.9")]
+    public void ThirdDismissCreatesAdminNotification() { }
+
+    [Fact(Skip = "Requires full fixture; W2.9")]
+    public void MentorCannotResolveOthersTask() { }
+
+    [Fact(Skip = "Requires full fixture; W2.9")]
+    public void NonLateStartTaskRejected() { }
+
+    [Fact(Skip = "Requires full fixture; W2.9")]
+    public void ReverseLateEndCreatesBothNotifications() { }
+
+    [Fact(Skip = "Requires full fixture; W2.9")]
+    public void ReverseLateEndIsIdempotent() { }
+
+    [Fact(Skip = "Requires full fixture; W2.9")]
+    public void ReverseLateEndSkipsNoPastAttendance() { }
 }
