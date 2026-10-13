@@ -2605,6 +2605,122 @@ a.FaceVerified,
         return Ok(state);
     }
 
+    // ─── Intern lifecycle status (REQ-10) ────────────────────────────────────
+    /// <summary>
+    /// Admin-only lifecycle transition. Guarded by an atomic compare-and-swap on
+    /// the intern's current status (D-12) so two concurrent actors cannot
+    /// double-apply; the loser gets 409 STALE_STATE.
+    /// </summary>
+    [Idempotent]
+    [HttpPatch("interns/{id}/status")]
+    public async Task<IActionResult> ChangeInternStatus(int id, [FromBody] AdminChangeInternStatusRequest req)
+    {
+        var intern = await _db.Interns.AsNoTracking().FirstOrDefaultAsync(i => i.Id == id);
+        if (intern == null) return NotFound(new { message = "Intern not found" });
+
+        if (!Enum.IsDefined(typeof(InternshipStatus), req.Status))
+            return BadRequest(new { message = "Unknown status value." });
+        var newStatus = (InternshipStatus)req.Status;
+
+        if (intern.Status == newStatus)
+            return BadRequest(new { message = $"Intern is already {newStatus}." });
+        if (newStatus == InternshipStatus.Terminated && string.IsNullOrWhiteSpace(req.Reason))
+            return BadRequest(new { message = "A reason is required to terminate an intern." });
+
+        var now = DateTime.Now;
+        var sets = new List<(string, object?)>
+        {
+            ("Status", (int)newStatus),
+            ("StatusUpdatedAt", now),
+            ("StatusUpdatedByUserId", (long)CurrentUserId)
+        };
+        if (newStatus == InternshipStatus.Terminated)
+        {
+            sets.Add(("TerminationReason", req.Reason!.Trim()));
+            sets.Add(("TerminatedAt", now));
+        }
+
+        var affected = await StateTransitions.TryUpdateAsync(_db, "intern status", "Interns", id,
+            sets.ToArray(),
+            ("Status", WhereOp.Equal, (int)intern.Status));
+        if (affected == 0)
+            return Conflict(new { code = "STALE_STATE", message = "This intern's status was just changed. Refresh and try again." });
+
+        await CloseAndOpenStatusHistoryAsync(id, newStatus, req.Reason?.Trim());
+        _db.ActivityLogs.Add(new ActivityLog
+        {
+            LogType = ActivityLogType.InternStatusChanged,
+            Description = $"Intern '{intern.FullName}' status changed from {intern.Status} to {newStatus}",
+            PerformedByUserId = CurrentUserId,
+            TargetInternId = id,
+            DepartmentId = intern.DepartmentId
+        });
+        await _db.SaveChangesAsync();
+        return Ok(new { message = $"Intern status changed to {newStatus}.", status = newStatus.ToString(), statusUpdatedAt = now });
+    }
+
+    /// <summary>
+    /// Admin-only reversal of a termination. Per N14 the intern lands in
+    /// <see cref="InternshipStatus.Withdrawn"/>, never directly Active.
+    /// </summary>
+    [Idempotent]
+    [HttpPost("interns/{id}/unterminate")]
+    public async Task<IActionResult> UnterminateIntern(int id, [FromBody] AdminUnterminateRequest req)
+    {
+        var intern = await _db.Interns.AsNoTracking().FirstOrDefaultAsync(i => i.Id == id);
+        if (intern == null) return NotFound(new { message = "Intern not found" });
+
+        if (intern.Status != InternshipStatus.Terminated)
+            return BadRequest(new { message = "Only terminated interns can be reinstated." });
+        if (string.IsNullOrWhiteSpace(req.Reason))
+            return BadRequest(new { message = "A reason is required to reinstate an intern." });
+
+        var now = DateTime.Now;
+        var affected = await StateTransitions.TryUpdateAsync(_db, "intern status", "Interns", id,
+            new (string, object?)[]
+            {
+                ("Status", (int)InternshipStatus.Withdrawn),
+                ("StatusUpdatedAt", now),
+                ("StatusUpdatedByUserId", (long)CurrentUserId),
+                ("TerminationReason", (object?)null),
+                ("TerminatedAt", (object?)null)
+            },
+            ("Status", WhereOp.Equal, (int)InternshipStatus.Terminated));
+        if (affected == 0)
+            return Conflict(new { code = "STALE_STATE", message = "This intern's status was just changed. Refresh and try again." });
+
+        await CloseAndOpenStatusHistoryAsync(id, InternshipStatus.Withdrawn, req.Reason!.Trim());
+        _db.ActivityLogs.Add(new ActivityLog
+        {
+            LogType = ActivityLogType.InternStatusChanged,
+            Description = $"Termination of intern '{intern.FullName}' reversed (now Withdrawn)",
+            PerformedByUserId = CurrentUserId,
+            TargetInternId = id,
+            DepartmentId = intern.DepartmentId
+        });
+        await _db.SaveChangesAsync();
+        return Ok(new { message = "Intern reinstated.", status = InternshipStatus.Withdrawn.ToString(), statusUpdatedAt = now });
+    }
+
+    /// <summary>
+    /// Closes any open status-history row and opens a new one. The history table
+    /// is the source of truth for suspended-day exclusion in scoring.
+    /// </summary>
+    private async Task CloseAndOpenStatusHistoryAsync(int internId, InternshipStatus status, string? reason)
+    {
+        var now = DateTime.Now;
+        var open = await _db.InternStatusHistories.Where(h => h.InternId == internId && h.ToDate == null).ToListAsync();
+        foreach (var h in open) h.ToDate = now;
+        _db.InternStatusHistories.Add(new InternStatusHistory
+        {
+            InternId = internId,
+            Status = status,
+            FromDate = now,
+            ChangedByUserId = CurrentUserId,
+            Reason = reason
+        });
+    }
+
 }
 
 public record CreateMentorRequest([MaxLength(100)] string? Username, [MaxLength(128)] string Password, [MaxLength(200)] string FullName, [MaxLength(100)] string Designation, int DepartmentId, [MaxLength(50)] string? Phone = null, [MaxLength(200)] string? Email = null);
@@ -2627,3 +2743,5 @@ public record AdminUpdateAttendanceRequest(DateTime? InTime, DateTime? OutTime,
 public record AdminInitiateInternTransferRequest(int ToMentorId, [MaxLength(1000)] string? Notes);
 public record AdminEditTransferRequest(int? ToMentorId, [MaxLength(1000)] string? Notes);
 public record RejectInternTransferRequest([MaxLength(1000)] string Reason);
+public record AdminChangeInternStatusRequest(int Status, [MaxLength(1000)] string? Reason);
+public record AdminUnterminateRequest([MaxLength(1000)] string? Reason);

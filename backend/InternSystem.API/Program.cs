@@ -171,6 +171,7 @@ builder.Services.AddScoped<IdempotencyService>();
 builder.Services.AddHostedService<InternSystem.API.Services.AttendanceFailureAutoPurgeService>();
 builder.Services.AddHostedService<InternSystem.API.Services.AttendanceFailureRetentionReminderService>();
 builder.Services.AddHostedService<InternSystem.API.Services.InternStatusAutoActivateService>();
+builder.Services.AddHostedService<InternSystem.API.Services.LateStartResolutionService>();
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())

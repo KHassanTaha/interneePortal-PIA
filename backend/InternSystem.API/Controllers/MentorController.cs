@@ -2309,6 +2309,155 @@ public class MentorController : ControllerBase
         return Ok(state);
     }
 
+    // ─── Intern lifecycle status (REQ-10) ────────────────────────────────────
+    /// <summary>
+    /// Mentor-scoped lifecycle transition. Mentors may only set
+    /// Active/Suspended/Completed, and only on their own interns; every other
+    /// transition is admin-only (Q13b). Compare-and-swap guarded (D-12).
+    /// </summary>
+    [Idempotent]
+    [HttpPatch("interns/{id}/status")]
+    public async Task<IActionResult> ChangeInternStatus(int id, [FromBody] MentorChangeInternStatusRequest req)
+    {
+        var mentor = await GetCurrentMentor();
+        if (mentor == null) return NotFound();
+
+        var intern = await _db.Interns.AsNoTracking().FirstOrDefaultAsync(i => i.Id == id && i.MentorId == mentor.Id);
+        if (intern == null) return NotFound(new { message = "Intern not found or not yours" });
+
+        if (!Enum.IsDefined(typeof(InternshipStatus), req.Status))
+            return BadRequest(new { message = "Unknown status value." });
+        var newStatus = (InternshipStatus)req.Status;
+
+        if (newStatus is not (InternshipStatus.Active or InternshipStatus.Suspended or InternshipStatus.Completed))
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = $"Only an administrator can set status to {newStatus}." });
+        if (intern.Status == newStatus)
+            return BadRequest(new { message = $"Intern is already {newStatus}." });
+
+        var now = DateTime.Now;
+        var affected = await StateTransitions.TryUpdateAsync(_db, "intern status", "Interns", id,
+            new (string, object?)[]
+            {
+                ("Status", (int)newStatus),
+                ("StatusUpdatedAt", now),
+                ("StatusUpdatedByUserId", (long)CurrentUserId)
+            },
+            ("Status", WhereOp.Equal, (int)intern.Status),
+            ("MentorId", WhereOp.Equal, mentor.Id));
+        if (affected == 0)
+            return Conflict(new { code = "STALE_STATE", message = "This intern's status was just changed. Refresh and try again." });
+
+        await CloseAndOpenStatusHistoryAsync(id, newStatus, req.Reason?.Trim());
+        _db.ActivityLogs.Add(new ActivityLog
+        {
+            LogType = ActivityLogType.InternStatusChanged,
+            Description = $"Mentor changed intern '{intern.FullName}' status from {intern.Status} to {newStatus}",
+            PerformedByUserId = CurrentUserId,
+            TargetInternId = id,
+            DepartmentId = mentor.DepartmentId
+        });
+        await _db.SaveChangesAsync();
+        return Ok(new { message = $"Intern status changed to {newStatus}.", status = newStatus.ToString(), statusUpdatedAt = now });
+    }
+
+    /// <summary>
+    /// Resolves a "LateStartResolution" task raised by the 2e scan. ExtendStart
+    /// moves the intern's start date forward (must not be in the past, C1);
+    /// Withdraw ends the internship as Withdrawn; Dismiss defers and, on the
+    /// third dismissal, notifies every admin.
+    /// </summary>
+    [Idempotent]
+    [HttpPost("tasks/{id}/resolve")]
+    public async Task<IActionResult> ResolveTask(int id, [FromBody] MentorResolveTaskRequest req)
+    {
+        var mentor = await GetCurrentMentor();
+        if (mentor == null) return NotFound();
+
+        var task = await _db.Tasks.Include(t => t.Intern)
+            .FirstOrDefaultAsync(t => t.Id == id && t.AssignedByMentorId == mentor.Id);
+        if (task == null) return NotFound(new { message = "Task not found or not yours" });
+
+        if (task.TaskType != "LateStartResolution")
+            return BadRequest(new { message = "This task is not a late-start resolution task." });
+        if (task.Status != InternSystem.Core.Entities.TaskStatus.Pending)
+            return BadRequest(new { message = "This task has already been resolved." });
+
+        var now = DateTime.Now;
+        var action = (req.Action ?? string.Empty).Trim();
+        List<int> adminsToNotify = new();
+
+        switch (action)
+        {
+            case "ExtendStart":
+                if (req.NewStartDate == null)
+                    return BadRequest(new { message = "A new start date is required." });
+                if (req.NewStartDate.Value.Date < DateTime.Now.Date)
+                    return BadRequest(new { message = "The new start date cannot be in the past." });
+                task.Intern.StartDate = req.NewStartDate.Value;
+                task.Status = InternSystem.Core.Entities.TaskStatus.Completed;
+                task.CompletedAt = now;
+                break;
+
+            case "Withdraw":
+                if (task.Intern.Status == InternshipStatus.Withdrawn)
+                    return BadRequest(new { message = "Intern is already withdrawn." });
+                await StateTransitions.TryUpdateAsync(_db, "intern status", "Interns", task.InternId,
+                    new (string, object?)[]
+                    {
+                        ("Status", (int)InternshipStatus.Withdrawn),
+                        ("StatusUpdatedAt", now),
+                        ("StatusUpdatedByUserId", (long)CurrentUserId)
+                    },
+                    ("Status", WhereOp.Equal, (int)task.Intern.Status));
+                await CloseAndOpenStatusHistoryAsync(task.InternId, InternshipStatus.Withdrawn, "Late start: withdrawn by mentor");
+                task.Status = InternSystem.Core.Entities.TaskStatus.Completed;
+                task.CompletedAt = now;
+                break;
+
+            case "Dismiss":
+                task.DismissCount++;
+                if (task.DismissCount >= 3)
+                    adminsToNotify = await _db.Users.Where(u => u.Role == UserRole.Admin).Select(u => u.Id).ToListAsync();
+                break;
+
+            default:
+                return BadRequest(new { message = "Unknown action. Use ExtendStart, Withdraw or Dismiss." });
+        }
+
+        _db.ActivityLogs.Add(new ActivityLog
+        {
+            LogType = ActivityLogType.TaskCompleted,
+            Description = $"Late-start task for '{task.Intern.FullName}' resolved: {action}",
+            PerformedByUserId = CurrentUserId,
+            TargetInternId = task.InternId,
+            DepartmentId = mentor.DepartmentId
+        });
+        await _db.SaveChangesAsync();
+
+        foreach (var adminId in adminsToNotify)
+            await _notifications.NotifyAsync(adminId, "Late-start task dismissed",
+                $"Mentor '{mentor.FullName}' dismissed the late-start task for '{task.Intern.FullName}' three times.",
+                NotificationType.General, "Task", task.Id);
+
+        return Ok(new { message = "Task resolved.", taskId = task.Id, status = task.Status.ToString(), dismissCount = task.DismissCount });
+    }
+
+    /// <summary>Closes any open status-history row and opens a new one (D-12 history).</summary>
+    private async Task CloseAndOpenStatusHistoryAsync(int internId, InternshipStatus status, string? reason)
+    {
+        var now = DateTime.Now;
+        var open = await _db.InternStatusHistories.Where(h => h.InternId == internId && h.ToDate == null).ToListAsync();
+        foreach (var h in open) h.ToDate = now;
+        _db.InternStatusHistories.Add(new InternStatusHistory
+        {
+            InternId = internId,
+            Status = status,
+            FromDate = now,
+            ChangedByUserId = CurrentUserId,
+            Reason = reason
+        });
+    }
+
 }
 
 public record CreateInternRequest(
@@ -2329,3 +2478,5 @@ public record CreateShiftRequest([MaxLength(100)] string Name, TimeSpan StartTim
 public record InitiateShiftChangeRequest(int ToShiftId, [MaxLength(1000)] string? Notes);
 public record RejectLeaveRequest([MaxLength(1000)] string? Reason);
 public record InitiateInternTransferRequest(int ToMentorId, [MaxLength(1000)] string? Notes);
+public record MentorChangeInternStatusRequest(int Status, [MaxLength(1000)] string? Reason);
+public record MentorResolveTaskRequest([MaxLength(50)] string? Action, DateTime? NewStartDate);

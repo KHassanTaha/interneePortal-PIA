@@ -13,11 +13,9 @@ namespace InternSystem.API.Services;
 /// after the internship <c>EndDate</c> has passed.</item>
 /// </list>
 ///
-/// INTENTIONALLY NOT REGISTERED in <c>Program.cs</c> (2026-10-14): the resolution
-/// endpoint this task depends on was never merged, so registering the service
-/// would create <c>LateStartResolution</c> tasks that no endpoint can resolve.
-/// Re-enable the <c>AddHostedService</c> registration only once W1-REQ10-EP
-/// (docs/TODO.md) lands.
+/// Registered in <c>Program.cs</c> as of the REQ-10 endpoint layer (2026-10-14):
+/// the resolution endpoint now exists (POST /api/mentor/tasks/{id}/resolve), so
+/// the <c>LateStartResolution</c> tasks this pass opens can be closed by a mentor.
 /// </summary>
 public class LateStartResolutionService : IHostedService, IDisposable
 {
@@ -125,7 +123,13 @@ public class LateStartResolutionService : IHostedService, IDisposable
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             await RunOnceAsync(db);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            // A scheduled pass must never tear down the host; log and wait for the
+            // next tick. An empty catch here would hide repeated failures (AGENTS 12.6).
+            var logger = _sp.GetService<ILogger<LateStartResolutionService>>();
+            logger?.LogError(ex, "LateStartResolutionService pass failed");
+        }
     }
 
     public Task StopAsync(CancellationToken ct)
